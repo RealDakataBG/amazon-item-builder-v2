@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 
 const TEMPLATE_ID = '1FsxYvYaOKK8GWsnts4_CpHP8xzEH8pHo4yf6iBSXkqM'
-const DEST_FOLDER_ID = '1wfxTr3wzXdiuthorxleubFphaeLvu0en'
+const DEST_FOLDER_ID = '14VMfZplbMVffi9IyTvnc44-ydf2TGRFm'
 
 function base64url(str) {
   return Buffer.from(str).toString('base64url')
