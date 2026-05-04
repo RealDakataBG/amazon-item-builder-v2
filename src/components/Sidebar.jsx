@@ -60,33 +60,48 @@ export default function Sidebar({ clientName, productName, activeSection, onSect
             </button>
           )
         })}
+
+        {/* Create Concept + Create Variants — shown below Keywords when done */}
+        {generationDone && (
+          <div className="pt-2 space-y-1.5">
+            <button
+              onClick={onCreateConcept}
+              disabled={conceptStatus === 'loading'}
+              className={`relative w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden ${
+                conceptStatus === 'loading'
+                  ? 'bg-emerald-500 text-white cursor-wait'
+                  : conceptStatus === 'done'
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  : conceptStatus === 'error'
+                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                  : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+              }`}
+            >
+              {conceptStatus === 'loading' && (
+                <span className="absolute inset-0 flex items-center justify-center bg-emerald-500">
+                  <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </span>
+              )}
+              <span className={conceptStatus === 'loading' ? 'invisible' : ''}>
+                {conceptStatus === 'done' ? 'Concept Created ✓' : conceptStatus === 'error' ? 'Retry' : 'Create Concept'}
+              </span>
+            </button>
+
+            <button
+              disabled
+              className="w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white opacity-50 cursor-not-allowed"
+            >
+              Create Variants
+            </button>
+          </div>
+        )}
       </nav>
 
-      {/* Create Concept + New Concept buttons */}
-      <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-        {generationDone && (
-          <button
-            onClick={onCreateConcept}
-            disabled={conceptStatus === 'loading' || conceptStatus === 'done'}
-            className={`w-full justify-center flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              conceptStatus === 'done'
-                ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                : conceptStatus === 'error'
-                ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                : conceptStatus === 'loading'
-                ? 'bg-emerald-500 text-white cursor-wait opacity-80'
-                : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-            }`}
-          >
-            {conceptStatus === 'loading' && (
-              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            )}
-            {conceptStatus === 'done' ? 'Concept Created' : conceptStatus === 'error' ? 'Retry' : 'Create Concept'}
-          </button>
-        )}
+      {/* New Concept button */}
+      <div className="mt-4 pt-4 border-t border-gray-200">
         <button onClick={onNewConcept} className="btn-outline w-full justify-center">
           New Concept
         </button>
