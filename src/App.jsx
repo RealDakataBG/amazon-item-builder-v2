@@ -5,28 +5,16 @@ import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
 import { fetchProductData, fetchPromptSheet } from './utils/sheets'
-import {
-  normalizeGermanChars,
-  sanitizeTaskName,
-  appendRandomNumber,
-  ensureHttps,
-  extractAndFormatReviews,
-  buildApifyTaskBody,
-} from './utils/textUtils'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { SYSTEM_PROMPTS } from './constants'
-import apifyTemplate from '../Apify_scraper_json.json'
 
 const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
 
 const INITIAL_STEPS = [
-  { id: 'sheets',     label: 'Fetching product & prompt data',         status: 'pending', message: '' },
-  { id: 'apify_run',  label: 'Starting Apify scraper',                 status: 'pending', message: '' },
-  { id: 'apify_poll', label: 'Scraping competitor page (1–3 min)',      status: 'pending', message: '' },
-  { id: 'apify_res',  label: 'Extracting competitor reviews',           status: 'pending', message: '' },
-  { id: 'claude_3',   label: 'Generating Title, Bullets & Description', status: 'pending', message: '' },
-  { id: 'claude_kw',  label: 'Generating Backend Keywords',             status: 'pending', message: '' },
-  { id: 'done',       label: 'Concept ready',                           status: 'pending', message: '' },
+  { id: 'sheets',    label: 'Fetching product & prompt data',         status: 'pending', message: '' },
+  { id: 'claude_3',  label: 'Generating Title, Bullets & Description', status: 'pending', message: '' },
+  { id: 'claude_kw', label: 'Generating Backend Keywords',             status: 'pending', message: '' },
+  { id: 'done',      label: 'Concept ready',                           status: 'pending', message: '' },
 ]
 
 const INITIAL_SECTIONS = {
@@ -62,19 +50,6 @@ export default function App() {
     return data.text
   }
 
-  const pollApifyStatus = async (taskId, runId) => {
-    for (let i = 0; i < 72; i++) {
-      await new Promise(r => setTimeout(r, 5000))
-      const res = await fetch(`/api/apify-status?taskId=${taskId}&runId=${runId}`)
-      if (!res.ok) throw new Error('Failed to check Apify run status')
-      const { status } = await res.json()
-      if (status === 'SUCCEEDED') return
-      if (['FAILED', 'ABORTED', 'TIMED-OUT'].includes(status))
-        throw new Error(`Apify scrape ended with status: ${status}`)
-    }
-    throw new Error('Apify scrape timed out after 6 minutes')
-  }
-
   const runGeneration = async (client, productTab) => {
     setPhase(PHASE.GENERATING)
     setSteps(INITIAL_STEPS.map(s => ({ ...s })))
@@ -89,49 +64,17 @@ export default function App() {
       ])
       updateStep('sheets', 'done')
 
-      // 2. Build and start Apify task
-      updateStep('apify_run', 'running')
-      const processedName = appendRandomNumber(sanitizeTaskName(normalizeGermanChars(productData.productName)))
-      const safeUrl = ensureHttps(productData.competitorUrl)
-      const taskBody = buildApifyTaskBody(apifyTemplate, processedName, safeUrl)
-
-      const apifyRunRes = await fetch('/api/apify-run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskBody }),
-      })
-      if (!apifyRunRes.ok) {
-        const err = await apifyRunRes.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to start Apify scrape')
-      }
-      const { taskId, runId } = await apifyRunRes.json()
-      updateStep('apify_run', 'done')
-
-      // 3. Poll for completion
-      updateStep('apify_poll', 'running', `Run ID: ${runId}`)
-      await pollApifyStatus(taskId, runId)
-      updateStep('apify_poll', 'done')
-
-      // 4. Fetch results and extract reviews
-      updateStep('apify_res', 'running')
-      const apifyResResponse = await fetch(`/api/apify-results?taskId=${taskId}&runId=${runId}`)
-      if (!apifyResResponse.ok) throw new Error('Failed to fetch Apify results')
-      const { items } = await apifyResResponse.json()
-      const reviewsText = extractAndFormatReviews(items)
-      updateStep('apify_res', 'done')
-
-      // 5. Build the three user prompts
+      // 2. Build the three user prompts
       const sharedArgs = {
         productName: productData.productName,
         description: productData.description,
         usp:         productData.usp,
-        reviewsText,
       }
       const titleUserPrompt       = buildTitlePrompt({ ...sharedArgs, titlePromptInstruction:       promptData.titlePrompt })
       const bulletsUserPrompt     = buildBulletsPrompt({ ...sharedArgs, bulletsPromptInstruction:     promptData.bulletsPrompt })
       const descriptionUserPrompt = buildDescriptionPrompt({ ...sharedArgs, descriptionPromptInstruction: promptData.descriptionPrompt })
 
-      // 6. Three parallel Claude calls
+      // 3. Three parallel Claude calls
       updateStep('claude_3', 'running')
       const [titleResult, bulletsResult, descriptionResult] = await Promise.all([
         callClaude(SYSTEM_PROMPTS.title,       titleUserPrompt),
@@ -140,7 +83,7 @@ export default function App() {
       ])
       updateStep('claude_3', 'done')
 
-      // 7. Sequential keywords call (needs the other three outputs)
+      // 4. Sequential keywords call (needs the other three outputs)
       updateStep('claude_kw', 'running')
       const keywordsUserPrompt = buildKeywordsPrompt({
         keywordsPromptInstruction: promptData.keywordsPrompt,
@@ -152,7 +95,7 @@ export default function App() {
       updateStep('claude_kw', 'done')
       updateStep('done', 'done')
 
-      // 8. Populate sections and show the editor
+      // 5. Populate sections and show the editor
       setSections({
         title:       { input: titleUserPrompt,       output: titleResult },
         bullets:     { input: bulletsUserPrompt,     output: bulletsResult },
