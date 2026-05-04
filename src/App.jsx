@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ClientSelector from './components/ClientSelector'
 import ProductSelector from './components/ProductSelector'
 import ProgressTracker from './components/ProgressTracker'
@@ -33,6 +33,13 @@ export default function App() {
   const [sections, setSections] = useState(INITIAL_SECTIONS)
   const [error, setError] = useState(null)
   const [conceptStatus, setConceptStatus] = useState('idle')
+
+  useEffect(() => {
+    if (conceptStatus === 'done' || conceptStatus === 'error') {
+      const t = setTimeout(() => setConceptStatus('idle'), 10000)
+      return () => clearTimeout(t)
+    }
+  }, [conceptStatus])
 
   const updateStep = (id, status, message = '') =>
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
@@ -143,6 +150,7 @@ export default function App() {
           client:      selectedClient?.name ?? '',
           identifier:  Number(selectedClient?.identifier),
           drive_url:   selectedClient?.driveFolderUrl ?? '',
+          sheet_url:   selectedClient?.clientSheetId ? `https://docs.google.com/spreadsheets/d/${selectedClient.clientSheetId}` : '',
           product:     selectedProduct,
           title:       sections.title.output,
           bullets:     sections.bullets.output,
