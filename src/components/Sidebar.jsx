@@ -1,6 +1,6 @@
 import { SECTIONS } from '../constants'
 
-export default function Sidebar({ clientName, productName, activeSection, onSectionChange, onNewConcept, generationDone, sections }) {
+export default function Sidebar({ clientName, productName, activeSection, onSectionChange, onNewConcept, onCreateConcept, generationDone, sections, conceptStatus }) {
   return (
     <div className="h-full flex flex-col p-4 select-none">
       {/* App branding */}
@@ -62,8 +62,31 @@ export default function Sidebar({ clientName, productName, activeSection, onSect
         })}
       </nav>
 
-      {/* New concept button */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
+      {/* Create Concept + New Concept buttons */}
+      <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+        {generationDone && (
+          <button
+            onClick={onCreateConcept}
+            disabled={conceptStatus === 'loading' || conceptStatus === 'done'}
+            className={`w-full justify-center flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              conceptStatus === 'done'
+                ? 'bg-emerald-100 text-emerald-700 cursor-default'
+                : conceptStatus === 'error'
+                ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                : conceptStatus === 'loading'
+                ? 'bg-emerald-500 text-white cursor-wait opacity-80'
+                : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+            }`}
+          >
+            {conceptStatus === 'loading' && (
+              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
+            {conceptStatus === 'done' ? 'Concept Created' : conceptStatus === 'error' ? 'Retry' : 'Create Concept'}
+          </button>
+        )}
         <button onClick={onNewConcept} className="btn-outline w-full justify-center">
           New Concept
         </button>

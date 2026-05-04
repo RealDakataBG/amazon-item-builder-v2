@@ -12,6 +12,9 @@
 [functions."apify-run"]
   timeout = 30
 
+[functions."google-create-concept"]
+  timeout = 30
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
