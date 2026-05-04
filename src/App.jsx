@@ -150,7 +150,7 @@ export default function App() {
           client:      selectedClient?.name ?? '',
           identifier:  Number(selectedClient?.identifier),
           drive_url:   selectedClient?.driveFolderUrl ?? '',
-          sheet_url:   selectedClient?.clientSheetId ? `https://docs.google.com/spreadsheets/d/${selectedClient.clientSheetId}` : '',
+          sheet_id:    selectedClient?.clientSheetId ?? '',
           product:     selectedProduct,
           title:       sections.title.output,
           bullets:     sections.bullets.output,
