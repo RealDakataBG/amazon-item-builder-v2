@@ -91,7 +91,8 @@ export default function App() {
         bulletsResult,
         descriptionResult,
       })
-      const keywordsResult = await callClaude(SYSTEM_PROMPTS.keywords, keywordsUserPrompt)
+      const keywordsRaw = await callClaude(SYSTEM_PROMPTS.keywords, keywordsUserPrompt)
+      const keywordsResult = keywordsRaw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
       updateStep('claude_kw', 'done')
       updateStep('done', 'done')
 
