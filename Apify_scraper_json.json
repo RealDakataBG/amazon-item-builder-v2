@@ -1,0 +1,44 @@
+{
+  "actId": "moJRLRc85AitArpNN",
+  "name": "{1}",
+  "options": {
+    "build": "beta",
+    "timeoutSecs": 300,
+    "memoryMbytes": 4096
+  },
+  "input": {
+    "breakpointLocation": "NONE",
+    "browserLog": false,
+    "closeCookieModals": false,
+    "debugLog": false,
+    "downloadCss": true,
+    "downloadMedia": true,
+    "headless": true,
+    "ignoreCorsAndCsp": false,
+    "ignoreSslErrors": false,
+    "injectJQuery": true,
+    "keepUrlFragments": false,
+    "pageFunction": "/**\n * Scrape one Amazon product page for:\n *  • Title\n *  • “About this item” bullet points\n *  • Long product-description text\n *  • Visible reviews (rating, title, date, body, reviewer name)\n *\n * NOTE – selectors point at the exact markup snippets you provided.\n */\nasync function pageFunction (context) {\n    const $ = context.jQuery;\n\n    /* ---------- Helpers ---------- */\n    const clean = txt => txt.replace(/\\s+/g, ' ').trim();\n\n    /* ---------- TITLE ---------- */\n    // <span id=\"productTitle\">…</span>\n    const title = clean($('#productTitle').first().text());\n\n    /* ---------- BULLET POINTS ---------- */\n    // <div id=\"feature-bullets\"> … <ul><li><span class=\"a-list-item\">…</span></li> … </ul>\n    const bulletPoints = $('#feature-bullets ul li span.a-list-item')\n        .map((_, el) => clean($(el).text()))\n        .get();\n\n    /* ---------- PRODUCT DESCRIPTION ---------- */\n    //\n    // Amazon sometimes renders the same text in different containers,\n    // so grab whichever exists and normalise <br> → \\n so the text\n    // is readable when returned as plain text.\n    //\n    let descHTML = $('#productDescription').html() ||\n                   $('#productDescription_feature_div').html() ||\n                   '';\n    // Replace <br> with line-break text so we don’t lose paragraphs\n    descHTML = descHTML.replace(/<br\\s*\\/?>/gi, '\\n');\n    // Strip all tags, squash whitespace\n    const description = clean($('<div>').html(descHTML).text());\n\n    /* ---------- REVIEWS ---------- */\n    //\n    // We stay inside the list <li data-hook=\"review\"> you pasted.\n    //\n    const reviews = [];\n    $('li[data-hook=\"review\"]').each((_, el) => {\n        const $rev = $(el);\n\n        /* star rating “4.0 out of 5 stars” → 4.0 */\n        const ratingTxt = $rev.find('i[data-hook=\"review-star-rating\"] span')\n                              .first().text();\n        const rating = parseFloat((ratingTxt.match(/[\\d.]+/) || [null])[0]);\n\n        const reviewTitle = clean(\n            $rev.find('a[data-hook=\"review-title\"] span').first().text()\n        );\n\n        const reviewDate  = clean(\n            $rev.find('span[data-hook=\"review-date\"]').first().text()\n        );\n\n        // Body can live in two places (collapsed vs. expanded)\n        let bodyEl = $rev.find('span[data-hook=\"review-body\"]')\n                         .first();\n        if (!bodyEl.length) {\n            bodyEl = $rev.find('div[data-hook=\"review-collapsed\"]')\n                         .first();\n        }\n        const reviewBody = clean(bodyEl.text());\n\n        const reviewer   = clean(\n            $rev.find('span.a-profile-name').first().text()\n        );\n\n        reviews.push({ rating, reviewTitle, reviewDate, reviewBody, reviewer });\n    });\n\n    /* ---------- FINAL SHAPE ---------- */\n    const fixturesInfo = [{\n        title,\n        bulletPoints,   // array<string>\n        description,    // string\n        reviews         // array<object>\n    }];\n\n    return {\n        return: {\n            url: context.request.url,\n            fixturesInfo\n        }\n    };\n}\n",
+    "postNavigationHooks": "// We need to return array of (possibly async) functions here.\n// The functions accept a single argument: the \"crawlingContext\" object.\n[\n    async (crawlingContext) => {\n        // ...\n    },\n]",
+    "preNavigationHooks": "// We need to return array of (possibly async) functions here.\n// The functions accept two arguments: the \"crawlingContext\" object\n// and \"gotoOptions\".\n[\n    async (crawlingContext, gotoOptions) => {\n        // ...\n    },\n]\n",
+    "proxyConfiguration": {
+      "useApifyProxy": true,
+      "apifyProxyGroups": [
+        "RESIDENTIAL"
+      ],
+      "apifyProxyCountry": "DE"
+    },
+    "respectRobotsTxtFile": true,
+    "runMode": "PRODUCTION",
+    "startUrls": [
+      {
+        "url": "{2}",
+        "method": "GET"
+      }
+    ],
+    "useChrome": false,
+    "waitUntil": [
+      "networkidle2"
+    ]
+  }
+}
