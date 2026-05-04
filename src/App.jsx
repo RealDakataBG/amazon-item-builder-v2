@@ -136,22 +136,21 @@ export default function App() {
   const handleCreateConcept = async () => {
     setConceptStatus('loading')
     try {
-      const res = await fetch('/api/google-create-concept', {
+      const res = await fetch('https://hook.eu1.make.com/jjr7dru5kpneiucti9v9d7fc1wizkkiu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title:            sections.title.output,
-          bullets:          sections.bullets.output,
-          description:      sections.description.output,
-          keywords:         sections.keywords.output,
-          productName:      selectedProduct,
-          clientIdentifier: selectedClient?.identifier ?? '',
+          client:      selectedClient?.name ?? '',
+          identifier:  Number(selectedClient?.identifier),
+          product:     selectedProduct,
+          title:       sections.title.output,
+          bullets:     sections.bullets.output,
+          description: sections.description.output,
+          keywords:    sections.keywords.output,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+      if (!res.ok) throw new Error(`Webhook error ${res.status}`)
       setConceptStatus('done')
-      window.open(data.url, '_blank')
     } catch (err) {
       setConceptStatus('error')
       setError(`Create concept failed: ${err.message}`)
