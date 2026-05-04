@@ -29,5 +29,6 @@ export function buildKeywordsPrompt({ keywordsPromptInstruction, titleResult, bu
     `  - Bullet Points: ${bulletsResult}`,
     `  - Description: ${descriptionResult}`,
     `  - ${keywordsPromptInstruction}`,
+    `- Wichtig: Gib die Keywords NUR als eine einzige Zeile aus, alle Keywords hintereinander mit Leerzeichen getrennt. Kein Komma, keine Nummerierung, keine Überschriften, kein sonstiger Text – nur die Keywords.`,
   ].join('\n')
 }
