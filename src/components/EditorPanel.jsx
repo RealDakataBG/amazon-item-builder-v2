@@ -60,7 +60,18 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="label-muted">Output (Claude)</span>
-          <CopyButton text={outputText} />
+          <div className="flex items-center gap-3">
+            {section === 'keywords' && (
+              <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+                new TextEncoder().encode(outputText).length >= 200 && new TextEncoder().encode(outputText).length <= 250
+                  ? 'bg-emerald-50 text-emerald-600'
+                  : 'bg-amber-50 text-amber-600'
+              }`}>
+                {new TextEncoder().encode(outputText).length} / 250 B
+              </span>
+            )}
+            <CopyButton text={outputText} />
+          </div>
         </div>
         <textarea
           value={outputText}
