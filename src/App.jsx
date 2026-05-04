@@ -142,6 +142,7 @@ export default function App() {
         body: JSON.stringify({
           client:      selectedClient?.name ?? '',
           identifier:  Number(selectedClient?.identifier),
+          drive_url:   selectedClient?.driveFolderUrl ?? '',
           product:     selectedProduct,
           title:       sections.title.output,
           bullets:     sections.bullets.output,
