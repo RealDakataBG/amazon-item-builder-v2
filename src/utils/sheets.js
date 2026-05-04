@@ -54,7 +54,7 @@ export async function fetchProductData(clientSheetId, tabName) {
 
 export async function fetchPromptSheet() {
   // B1:B7 — row offset 0=B1, row offset 2=B3, row offset 4=B5, row offset 6=B7
-  const values = await fetchRange(PROMPT_SHEET_ID, "'Text v2'!B1:B7")
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Text'!B1:B7")
   return {
     titlePrompt:       values?.[0]?.[0] ?? '',
     bulletsPrompt:     values?.[2]?.[0] ?? '',
