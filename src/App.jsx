@@ -32,6 +32,7 @@ export default function App() {
   const [steps, setSteps] = useState(INITIAL_STEPS.map(s => ({ ...s })))
   const [sections, setSections] = useState(INITIAL_SECTIONS)
   const [error, setError] = useState(null)
+  const [conceptStatus, setConceptStatus] = useState('idle')
 
   const updateStep = (id, status, message = '') =>
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
@@ -128,7 +129,33 @@ export default function App() {
     setSections(INITIAL_SECTIONS)
     setSteps(INITIAL_STEPS.map(s => ({ ...s })))
     setError(null)
+    setConceptStatus('idle')
     setPhase(PHASE.CLIENT_SELECT)
+  }
+
+  const handleCreateConcept = async () => {
+    setConceptStatus('loading')
+    try {
+      const res = await fetch('/api/google-create-concept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title:            sections.title.output,
+          bullets:          sections.bullets.output,
+          description:      sections.description.output,
+          keywords:         sections.keywords.output,
+          productName:      selectedProduct,
+          clientIdentifier: selectedClient?.identifier ?? '',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+      setConceptStatus('done')
+      window.open(data.url, '_blank')
+    } catch (err) {
+      setConceptStatus('error')
+      setError(`Create concept failed: ${err.message}`)
+    }
   }
 
   const handleSectionTextChange = (field, text) =>
@@ -161,8 +188,10 @@ export default function App() {
               activeSection={activeSection}
               onSectionChange={setActiveSection}
               onNewConcept={handleNewConcept}
+              onCreateConcept={handleCreateConcept}
               generationDone={phase === PHASE.DONE}
               sections={sections}
+              conceptStatus={conceptStatus}
             />
           </aside>
 
