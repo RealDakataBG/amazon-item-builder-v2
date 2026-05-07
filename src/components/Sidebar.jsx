@@ -1,6 +1,14 @@
-import { SECTIONS } from '../constants'
+import { SECTIONS, IMAGE_SLOTS } from '../constants'
 
-export default function Sidebar({ clientName, productName, activeSection, onSectionChange, onNewConcept, onCreateConcept, generationDone, sections, conceptStatus }) {
+export default function Sidebar({
+  clientName, productName,
+  activeSection, onSectionChange,
+  onNewConcept, onCreateConcept,
+  generationDone, sections, conceptStatus,
+  imageGenerating, imageStatus, imageSections,
+  activePanel, activeImageSlot,
+  onCreateImages, onImageSlotChange,
+}) {
   return (
     <div className="h-full flex flex-col p-4 select-none">
       {/* App branding */}
@@ -33,11 +41,11 @@ export default function Sidebar({ clientName, productName, activeSection, onSect
         <div className="border-t border-gray-200 my-2" />
       )}
 
-      {/* Section navigation */}
-      <nav className="flex-1 space-y-0.5 mt-2">
+      {/* Section navigation — scrollable */}
+      <nav className="flex-1 space-y-0.5 mt-2 overflow-y-auto">
         {SECTIONS.map(section => {
           const isDone = generationDone && sections?.[section.id]?.output
-          const isActive = activeSection === section.id
+          const isActive = activePanel === 'text' && activeSection === section.id
           return (
             <button
               key={section.id}
@@ -61,9 +69,10 @@ export default function Sidebar({ clientName, productName, activeSection, onSect
           )
         })}
 
-        {/* Create Concept + Create Variants — shown below Keywords when done */}
+        {/* Action buttons + image slots — shown when text generation is done */}
         {generationDone && (
           <div className="pt-2 space-y-1.5">
+            {/* Create Concept */}
             <button
               onClick={onCreateConcept}
               disabled={conceptStatus === 'loading'}
@@ -90,12 +99,87 @@ export default function Sidebar({ clientName, productName, activeSection, onSect
               </span>
             </button>
 
+            {/* Create Variants (disabled) */}
             <button
               disabled
               className="w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-500 text-white opacity-50 cursor-not-allowed"
             >
               Create Variants
             </button>
+
+            {/* Create Images (orange) */}
+            <button
+              onClick={onCreateImages}
+              disabled={imageGenerating}
+              className={`relative w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden ${
+                imageGenerating
+                  ? 'bg-orange-500 text-white cursor-wait'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white'
+              }`}
+            >
+              {imageGenerating && (
+                <span className="absolute inset-0 flex items-center justify-center bg-orange-500">
+                  <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </span>
+              )}
+              <span className={imageGenerating ? 'invisible' : ''}>
+                {imageStatus === 'done' ? 'Images Created ✓' : 'Create Images'}
+              </span>
+            </button>
+
+            {/* Image slots */}
+            <div className="border-t border-gray-200 mt-3 mb-1 pt-1">
+              <p className="label-muted px-1 mb-1">Product Images</p>
+              {IMAGE_SLOTS.filter(s => s.group === 'product').map(slot => {
+                const isClickable = imageStatus === 'done' && imageSections[slot.id]?.parsed !== null
+                const isActive = activePanel === 'image' && activeImageSlot === slot.id
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => isClickable && onImageSlotChange(slot.id)}
+                    disabled={!isClickable}
+                    className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      imageGenerating
+                        ? 'text-gray-400 cursor-wait animate-pulse'
+                        : !isClickable
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                )
+              })}
+
+              <p className="label-muted px-1 mt-3 mb-1">A+ Images</p>
+              {IMAGE_SLOTS.filter(s => s.group === 'aplus').map(slot => {
+                const isClickable = imageStatus === 'done' && imageSections[slot.id]?.parsed !== null
+                const isActive = activePanel === 'image' && activeImageSlot === slot.id
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => isClickable && onImageSlotChange(slot.id)}
+                    disabled={!isClickable}
+                    className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      imageGenerating
+                        ? 'text-gray-400 cursor-wait animate-pulse'
+                        : !isClickable
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </nav>

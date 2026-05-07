@@ -62,3 +62,17 @@ export async function fetchPromptSheet() {
     keywordsPrompt:    values?.[6]?.[0] ?? '',
   }
 }
+
+export async function fetchImagePrompts() {
+  const [featureRows, productRows, aplusRows] = await Promise.all([
+    fetchRange(PROMPT_SHEET_ID, "'Feature assignment'!B1:B3"),
+    fetchRange(PROMPT_SHEET_ID, "'Product Images'!B1:B11"),
+    fetchRange(PROMPT_SHEET_ID, "'A+ Images'!B1:B9"),
+  ])
+  return {
+    usp1Prompt:     featureRows?.[0]?.[0] ?? '',
+    usp2Prompt:     featureRows?.[2]?.[0] ?? '',
+    productPrompts: [0,2,4,6,8,10].map(i => productRows?.[i]?.[0] ?? ''),
+    aplusPrompts:   [0,2,4,6,8].map(i => aplusRows?.[i]?.[0] ?? ''),
+  }
+}

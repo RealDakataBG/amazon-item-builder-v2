@@ -4,9 +4,11 @@ import ProductSelector from './components/ProductSelector'
 import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
-import { fetchProductData, fetchPromptSheet } from './utils/sheets'
+import ImageEditorPanel from './components/ImageEditorPanel'
+import { fetchProductData, fetchPromptSheet, fetchImagePrompts } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
-import { SYSTEM_PROMPTS } from './constants'
+import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS } from './constants'
 
 const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
 
@@ -17,12 +19,24 @@ const INITIAL_STEPS = [
   { id: 'done',      label: 'Concept ready',                           status: 'pending', message: '' },
 ]
 
+const INITIAL_IMAGE_STEPS = [
+  { id: 'fetch_prompts', label: 'Fetching image prompts',              status: 'pending', message: '' },
+  { id: 'usp1',          label: 'Analyzing product features (Step 1)', status: 'pending', message: '' },
+  { id: 'usp2',          label: 'Analyzing product features (Step 2)', status: 'pending', message: '' },
+  { id: 'concepts',      label: 'Generating 11 image concepts',        status: 'pending', message: '' },
+  { id: 'done',          label: 'Image concepts ready',                status: 'pending', message: '' },
+]
+
 const INITIAL_SECTIONS = {
   title:       { input: '', output: '' },
   bullets:     { input: '', output: '' },
   description: { input: '', output: '' },
   keywords:    { input: '', output: '' },
 }
+
+const INITIAL_IMAGE_SECTIONS = Array.from({ length: 11 }, () => ({
+  input: '', rawOutput: '', parsed: null, parseError: null,
+}))
 
 export default function App() {
   const [phase, setPhase] = useState(PHASE.CLIENT_SELECT)
@@ -34,6 +48,15 @@ export default function App() {
   const [error, setError] = useState(null)
   const [conceptStatus, setConceptStatus] = useState('idle')
 
+  // Image generation state
+  const [activePanel, setActivePanel]         = useState('text')
+  const [activeImageSlot, setActiveImageSlot] = useState(null)
+  const [imageGenerating, setImageGenerating] = useState(false)
+  const [imageSteps, setImageSteps]           = useState(INITIAL_IMAGE_STEPS.map(s => ({ ...s })))
+  const [imageSections, setImageSections]     = useState(INITIAL_IMAGE_SECTIONS)
+  const [imageStatus, setImageStatus]         = useState('idle')
+  const [productDescription, setProductDescription] = useState('')
+
   useEffect(() => {
     if (conceptStatus === 'done' || conceptStatus === 'error') {
       const t = setTimeout(() => setConceptStatus('idle'), 10000)
@@ -43,6 +66,9 @@ export default function App() {
 
   const updateStep = (id, status, message = '') =>
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
+
+  const updateImageStep = (id, status, message = '') =>
+    setImageSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
 
   const callClaude = async (systemPrompt, userPrompt) => {
     const res = await fetch('/api/claude-generate', {
@@ -71,6 +97,7 @@ export default function App() {
         fetchPromptSheet(),
       ])
       updateStep('sheets', 'done')
+      setProductDescription(productData.description)
 
       // 2. Build the three user prompts
       const sharedArgs = {
@@ -112,11 +139,59 @@ export default function App() {
         keywords:    { input: keywordsUserPrompt,    output: keywordsResult },
       })
       setActiveSection('title')
+      setActivePanel('text')
       setPhase(PHASE.DONE)
 
     } catch (err) {
       setError(err.message)
       setSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error', message: err.message } : s))
+    }
+  }
+
+  const runImageGeneration = async () => {
+    setImageGenerating(true)
+    setImageSteps(INITIAL_IMAGE_STEPS.map(s => ({ ...s })))
+
+    try {
+      // 1. Fetch all image prompt tabs in parallel
+      updateImageStep('fetch_prompts', 'running')
+      const imagePromptData = await fetchImagePrompts()
+      updateImageStep('fetch_prompts', 'done')
+
+      // 2. USP Step 1 (sequential, hidden from user)
+      updateImageStep('usp1', 'running')
+      const usp1Output = await callClaude(USP_SYSTEM_PROMPT, `${imagePromptData.usp1Prompt}\n${productDescription}`)
+      updateImageStep('usp1', 'done')
+
+      // 3. USP Step 2 (sequential, depends on USP1)
+      updateImageStep('usp2', 'running')
+      const usp2Output = await callClaude(USP_SYSTEM_PROMPT, `${imagePromptData.usp2Prompt}\n${usp1Output}`)
+      updateImageStep('usp2', 'done')
+
+      // 4. 11 parallel image concept calls
+      updateImageStep('concepts', 'running')
+      const allSheetPrompts = [...imagePromptData.productPrompts, ...imagePromptData.aplusPrompts]
+      const results = await Promise.all(
+        allSheetPrompts.map(sheetPrompt => {
+          const userPrompt = buildImageUserPrompt(sheetPrompt, sections.description.output, usp2Output)
+          return callClaude(IMAGE_SYSTEM_PROMPT, userPrompt).then(raw => ({ userPrompt, raw }))
+        })
+      )
+      updateImageStep('concepts', 'done')
+      updateImageStep('done', 'done')
+
+      // 5. Parse outputs and populate imageSections
+      setImageSections(results.map(({ userPrompt, raw }) => {
+        const { data, error } = parseImageOutput(raw)
+        return { input: userPrompt, rawOutput: raw, parsed: data, parseError: error }
+      }))
+      setImageStatus('done')
+
+    } catch (err) {
+      setImageSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error', message: err.message } : s))
+      setImageStatus('error')
+    } finally {
+      setImageGenerating(false)
     }
   }
 
@@ -137,6 +212,13 @@ export default function App() {
     setSteps(INITIAL_STEPS.map(s => ({ ...s })))
     setError(null)
     setConceptStatus('idle')
+    setImageSections(INITIAL_IMAGE_SECTIONS)
+    setImageSteps(INITIAL_IMAGE_STEPS.map(s => ({ ...s })))
+    setImageStatus('idle')
+    setImageGenerating(false)
+    setActivePanel('text')
+    setActiveImageSlot(null)
+    setProductDescription('')
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -166,8 +248,34 @@ export default function App() {
     }
   }
 
+  const handleSectionChange = sectionId => {
+    setActivePanel('text')
+    setActiveSection(sectionId)
+  }
+
+  const handleImageSlotChange = index => {
+    setActivePanel('image')
+    setActiveImageSlot(index)
+  }
+
   const handleSectionTextChange = (field, text) =>
     setSections(prev => ({ ...prev, [activeSection]: { ...prev[activeSection], [field]: text } }))
+
+  const handleImageSectionChange = (slotIndex, field, subfield, value) => {
+    setImageSections(prev => {
+      const updated = [...prev]
+      const slot = { ...updated[slotIndex] }
+      if (field === 'input') {
+        slot.input = value
+      } else if (subfield) {
+        slot.parsed = { ...slot.parsed, [field]: { ...slot.parsed[field], [subfield]: value } }
+      } else {
+        slot.parsed = { ...slot.parsed, [field]: value }
+      }
+      updated[slotIndex] = slot
+      return updated
+    })
+  }
 
   return (
     <div className="h-screen flex bg-white overflow-hidden">
@@ -194,18 +302,33 @@ export default function App() {
               clientName={selectedClient?.name}
               productName={selectedProduct}
               activeSection={activeSection}
-              onSectionChange={setActiveSection}
+              onSectionChange={handleSectionChange}
               onNewConcept={handleNewConcept}
               onCreateConcept={handleCreateConcept}
               generationDone={phase === PHASE.DONE}
               sections={sections}
               conceptStatus={conceptStatus}
+              imageGenerating={imageGenerating}
+              imageStatus={imageStatus}
+              imageSections={imageSections}
+              activePanel={activePanel}
+              activeImageSlot={activeImageSlot}
+              onCreateImages={runImageGeneration}
+              onImageSlotChange={handleImageSlotChange}
             />
           </aside>
 
           <main className="flex-1 h-full overflow-y-auto">
             {phase === PHASE.GENERATING ? (
-              <ProgressTracker steps={steps} error={error} />
+              <ProgressTracker steps={steps} error={error} title="Generating your concept" />
+            ) : imageGenerating ? (
+              <ProgressTracker steps={imageSteps} error={null} title="Generating image concepts" />
+            ) : activePanel === 'image' && activeImageSlot !== null && imageSections[activeImageSlot]?.parsed ? (
+              <ImageEditorPanel
+                slotLabel={IMAGE_SLOTS[activeImageSlot].label}
+                data={imageSections[activeImageSlot]}
+                onChange={(field, subfield, value) => handleImageSectionChange(activeImageSlot, field, subfield, value)}
+              />
             ) : (
               <EditorPanel
                 section={activeSection}

@@ -1,9 +1,9 @@
-export default function ProgressTracker({ steps, error }) {
+export default function ProgressTracker({ steps, error, title = 'Generating your concept' }) {
   return (
     <div className="h-full flex items-center justify-center p-8">
       <div className="w-full max-w-md">
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900">Generating your concept</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
           <p className="text-sm text-gray-500 mt-1">This takes 2–4 minutes. Please keep the window open.</p>
         </div>
 
