@@ -130,56 +130,42 @@ export default function Sidebar({
               </span>
             </button>
 
-            {/* Image slots */}
-            <div className="border-t border-gray-200 mt-3 mb-1 pt-1">
-              <p className="label-muted px-1 mb-1">Product Images</p>
-              {IMAGE_SLOTS.filter(s => s.group === 'product').map(slot => {
-                const isClickable = imageStatus === 'done' && imageSections[slot.id]?.parsed !== null
-                const isActive = activePanel === 'image' && activeImageSlot === slot.id
-                return (
-                  <button
-                    key={slot.id}
-                    onClick={() => isClickable && onImageSlotChange(slot.id)}
-                    disabled={!isClickable}
-                    className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      imageGenerating
-                        ? 'text-gray-400 cursor-wait animate-pulse'
-                        : !isClickable
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {slot.label}
-                  </button>
-                )
-              })}
+            {/* Image slots — only shown after generation completes */}
+            {imageStatus === 'done' && (
+              <div className="border-t border-gray-200 mt-3 mb-1 pt-1">
+                <p className="label-muted px-1 mb-1">Product Images</p>
+                {IMAGE_SLOTS.filter(s => s.group === 'product').map(slot => {
+                  const isActive = activePanel === 'image' && activeImageSlot === slot.id
+                  return (
+                    <button
+                      key={slot.id}
+                      onClick={() => onImageSlotChange(slot.id)}
+                      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {slot.label}
+                    </button>
+                  )
+                })}
 
-              <p className="label-muted px-1 mt-3 mb-1">A+ Images</p>
-              {IMAGE_SLOTS.filter(s => s.group === 'aplus').map(slot => {
-                const isClickable = imageStatus === 'done' && imageSections[slot.id]?.parsed !== null
-                const isActive = activePanel === 'image' && activeImageSlot === slot.id
-                return (
-                  <button
-                    key={slot.id}
-                    onClick={() => isClickable && onImageSlotChange(slot.id)}
-                    disabled={!isClickable}
-                    className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      imageGenerating
-                        ? 'text-gray-400 cursor-wait animate-pulse'
-                        : !isClickable
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {slot.label}
-                  </button>
-                )
-              })}
-            </div>
+                <p className="label-muted px-1 mt-3 mb-1">A+ Images</p>
+                {IMAGE_SLOTS.filter(s => s.group === 'aplus').map(slot => {
+                  const isActive = activePanel === 'image' && activeImageSlot === slot.id
+                  return (
+                    <button
+                      key={slot.id}
+                      onClick={() => onImageSlotChange(slot.id)}
+                      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {slot.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </nav>
