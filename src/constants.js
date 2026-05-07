@@ -23,24 +23,25 @@ export const SECTIONS = [
 ]
 
 export const IMAGE_SYSTEM_PROMPT = `You are an expert Amazon product image concept creator.
-Return ONLY valid JSON, no markdown, no code fences, no explanation:
+Return ONLY raw JSON — no markdown, no code fences, no explanation, no trailing text.
+Use EXACTLY these camelCase key names:
 {
   "text": "<short description in German>",
   "imageDescription": "<short description in German>",
   "realPhoto": {
     "needed": "Yes or No",
-    "description": "<German description or No>",
+    "description": "<German description, or No if needed is No>",
     "person": "Yes or No",
     "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car|No>"
   },
   "rendering3d": {
     "needed": "Yes or No",
-    "description": "<German description or No>",
+    "description": "<German description, or No if needed is No>",
     "person": "Yes or No",
     "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car|No>"
   }
 }
-If needed is "No", all other fields in that block must be "No".`
+If needed is "No", every other field in that block must also be "No".`
 
 export const USP_SYSTEM_PROMPT = `You are an expert product analyst. Analyze the product information and output the result. Return only the analysis, no commentary.`
 
