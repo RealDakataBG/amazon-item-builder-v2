@@ -148,8 +148,17 @@ export default function App() {
     }
   }
 
+  const handleCreateImages = () => {
+    if (imageGenerating) {
+      setActivePanel('imageProgress')
+    } else if (imageStatus !== 'done') {
+      runImageGeneration()
+    }
+  }
+
   const runImageGeneration = async () => {
     setImageGenerating(true)
+    setActivePanel('imageProgress')
     setImageSteps(INITIAL_IMAGE_STEPS.map(s => ({ ...s })))
 
     try {
@@ -313,7 +322,7 @@ export default function App() {
               imageSections={imageSections}
               activePanel={activePanel}
               activeImageSlot={activeImageSlot}
-              onCreateImages={runImageGeneration}
+              onCreateImages={handleCreateImages}
               onImageSlotChange={handleImageSlotChange}
             />
           </aside>
@@ -321,9 +330,9 @@ export default function App() {
           <main className="flex-1 h-full overflow-y-auto">
             {phase === PHASE.GENERATING ? (
               <ProgressTracker steps={steps} error={error} title="Generating your concept" />
-            ) : imageGenerating ? (
+            ) : activePanel === 'imageProgress' ? (
               <ProgressTracker steps={imageSteps} error={null} title="Generating image concepts" />
-            ) : activePanel === 'image' && activeImageSlot !== null && imageSections[activeImageSlot]?.parsed ? (
+            ) : activePanel === 'image' && activeImageSlot !== null ? (
               <ImageEditorPanel
                 slotLabel={IMAGE_SLOTS[activeImageSlot].label}
                 data={imageSections[activeImageSlot]}

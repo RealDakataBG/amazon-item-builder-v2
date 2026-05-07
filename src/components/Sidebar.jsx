@@ -110,9 +110,11 @@ export default function Sidebar({
             {/* Create Images (orange) */}
             <button
               onClick={onCreateImages}
-              disabled={imageGenerating}
+              disabled={imageStatus === 'done'}
               className={`relative w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden ${
-                imageGenerating
+                imageStatus === 'done'
+                  ? 'bg-orange-500 text-white opacity-60 cursor-not-allowed'
+                  : imageGenerating
                   ? 'bg-orange-500 text-white cursor-wait'
                   : 'bg-orange-500 hover:bg-orange-600 text-white'
               }`}
