@@ -81,7 +81,7 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
       </div>
 
       {/* Right — Use AI sidebar */}
-      <div className="w-56 flex-shrink-0 sticky top-8 self-start">
+      <div className="flex-1 min-w-0 sticky top-8 self-start">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Edit with AI</p>
         <UseAIBox label="Output" targetValue={outputText} onAccept={onOutputChange} />
       </div>

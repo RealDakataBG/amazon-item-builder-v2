@@ -162,7 +162,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
       </div>
 
       {/* Right — Use AI sidebar */}
-      <div className="w-56 flex-shrink-0 sticky top-8 self-start space-y-6">
+      <div className="flex-1 min-w-0 sticky top-8 self-start space-y-6">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Edit with AI</p>
         <UseAIBox
           label="Text"
