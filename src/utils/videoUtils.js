@@ -31,7 +31,15 @@ export function parseVideoScenesOutput(rawText) {
       .replace(/\s*```\s*$/i, '')
       .trim()
     const raw = JSON.parse(cleaned)
-    const arr = Array.isArray(raw) ? raw : [raw]
+    let arr
+    if (Array.isArray(raw)) {
+      arr = raw
+    } else if (raw && typeof raw === 'object') {
+      // Handle {scene_1: {...}, scene_2: {...}, ...} format
+      arr = Object.values(raw)
+    } else {
+      arr = [raw]
+    }
     return { data: arr.map(normalizeScene), error: null }
   } catch (e) {
     return { data: null, error: e.message }

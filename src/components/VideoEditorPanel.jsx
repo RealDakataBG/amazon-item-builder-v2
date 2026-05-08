@@ -46,8 +46,15 @@ function RealVideoSection({ block, onChange }) {
         onChange={e => onChange('description', e.target.value)}
         className="input-base text-sm leading-relaxed resize-y min-h-20 mb-2"
         spellCheck={false}
+        placeholder="Description"
       />
       <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-gray-400 font-medium">Needed</span>
+          <select value="Yes" disabled className={`${SELECT_CLASS} opacity-60 cursor-not-allowed`}>
+            <option>Yes</option>
+          </select>
+        </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Person</span>
           <select

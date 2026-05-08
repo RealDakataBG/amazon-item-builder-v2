@@ -403,7 +403,7 @@ export default function App() {
                 data={imageSections[activeImageSlot]}
                 onChange={(field, subfield, value) => handleImageSectionChange(activeImageSlot, field, subfield, value)}
               />
-            ) : activePanel === 'video' && activeVideoSlot !== null ? (
+            ) : activePanel === 'video' && activeVideoSlot !== null && videoSections[activeVideoSlot] ? (
               <VideoEditorPanel
                 slotLabel={VIDEO_SLOTS[activeVideoSlot].label}
                 data={videoSections[activeVideoSlot]}
