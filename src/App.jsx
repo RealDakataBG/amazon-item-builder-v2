@@ -476,7 +476,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen flex bg-white overflow-hidden">
+    <div className="h-screen flex flex-col bg-white overflow-hidden">
       {/* Client selection modal */}
       {phase === PHASE.CLIENT_SELECT && (
         <ClientSelector onSelect={handleClientSelect} />
@@ -495,10 +495,40 @@ export default function App() {
       {/* Main split layout — visible during generation and after */}
       {(phase === PHASE.GENERATING || phase === PHASE.DONE) && (
         <>
+          {/* Top header bar */}
+          <header className="flex-shrink-0 h-12 border-b border-gray-200 bg-white flex items-center px-5 gap-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span className="font-semibold text-gray-900 text-sm">Listing Builder</span>
+            </div>
+            {selectedClient?.name && (
+              <>
+                <div className="h-4 w-px bg-gray-200 flex-shrink-0" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs text-gray-400 flex-shrink-0">Client</span>
+                  <span className="text-sm font-semibold text-gray-800 truncate">{selectedClient.name}</span>
+                </div>
+              </>
+            )}
+            {selectedProduct && (
+              <>
+                <div className="h-4 w-px bg-gray-200 flex-shrink-0" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs text-gray-400 flex-shrink-0">Product</span>
+                  <span className="text-sm font-semibold text-gray-800 truncate">{selectedProduct}</span>
+                </div>
+              </>
+            )}
+          </header>
+
+          {/* Sidebar + main */}
+          <div className="flex-1 flex overflow-hidden">
           <aside className="w-60 flex-shrink-0 h-full border-r border-gray-200 bg-gray-50">
             <Sidebar
-              clientName={selectedClient?.name}
-              productName={selectedProduct}
               activeSection={activeSection}
               onSectionChange={handleSectionChange}
               onNewConcept={handleNewConcept}
@@ -557,6 +587,7 @@ export default function App() {
               />
             )}
           </main>
+          </div>
         </>
       )}
     </div>
