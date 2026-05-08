@@ -1,48 +1,52 @@
-import { useState } from 'react'
 import { SECTIONS } from '../constants'
+import CopyButton from './CopyButton'
+import SideBySideField from './SideBySideField'
 
-function CopyButton({ text }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors px-2 py-1 rounded hover:bg-gray-100"
-    >
-      {copied ? (
-        <>
-          <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="text-emerald-500">Copied</span>
-        </>
-      ) : (
-        <>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <span>Copy</span>
-        </>
-      )}
-    </button>
-  )
-}
-
-export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange }) {
+export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange, regenStatus, onRegenerate }) {
   const sectionLabel = SECTIONS.find(s => s.id === section)?.label ?? section
 
-  return (
-    <div className="h-full flex flex-col p-8 max-w-4xl">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">{sectionLabel}</h1>
+  const byteCount = new TextEncoder().encode(outputText).length
+  const keywordsSuffix = section === 'keywords' ? (
+    <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+      byteCount >= 200 && byteCount <= 250
+        ? 'bg-emerald-50 text-emerald-600'
+        : 'bg-amber-50 text-amber-600'
+    }`}>
+      {byteCount} / 250 B
+    </span>
+  ) : null
 
-      {/* Input */}
+  return (
+    <div className="relative h-full flex flex-col p-8 max-w-5xl">
+      {/* Shimmer overlay while regenerating */}
+      {regenStatus === 'loading' && (
+        <div className="absolute inset-0 z-10 bg-white/70 animate-pulse rounded-xl pointer-events-auto" />
+      )}
+
+      <h1 className="text-xl font-semibold text-gray-900 mb-4">{sectionLabel}</h1>
+
+      {/* Regenerate button */}
+      <div className="mb-6">
+        <button
+          onClick={onRegenerate}
+          disabled={regenStatus === 'loading'}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-wait transition-colors"
+        >
+          {regenStatus === 'loading' ? (
+            <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          )}
+          {regenStatus === 'loading' ? 'Regenerating…' : 'Regenerate'}
+        </button>
+      </div>
+
+      {/* Input — single column */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="label-muted">Input (Prompt)</span>
@@ -56,30 +60,13 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
         />
       </div>
 
-      {/* Output */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="label-muted">Output (Claude)</span>
-          <div className="flex items-center gap-3">
-            {section === 'keywords' && (
-              <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                new TextEncoder().encode(outputText).length >= 200 && new TextEncoder().encode(outputText).length <= 250
-                  ? 'bg-emerald-50 text-emerald-600'
-                  : 'bg-amber-50 text-amber-600'
-              }`}>
-                {new TextEncoder().encode(outputText).length} / 250 B
-              </span>
-            )}
-            <CopyButton text={outputText} />
-          </div>
-        </div>
-        <textarea
-          value={outputText}
-          onChange={e => onOutputChange(e.target.value)}
-          className="input-base text-sm leading-relaxed resize-y min-h-48"
-          spellCheck={false}
-        />
-      </div>
+      {/* Output — side-by-side */}
+      <SideBySideField
+        label="Output (Claude)"
+        labelSuffix={keywordsSuffix}
+        leftValue={outputText}
+        onLeftChange={onOutputChange}
+      />
     </div>
   )
 }

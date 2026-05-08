@@ -3,7 +3,7 @@ import { callClaude } from '../utils/claude'
 import { EDIT_SYSTEM_PROMPT } from '../constants'
 import CopyButton from './CopyButton'
 
-export default function SideBySideField({ label, leftValue, onLeftChange }) {
+export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange }) {
   const [rightValue, setRightValue] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
 
@@ -28,7 +28,10 @@ export default function SideBySideField({ label, leftValue, onLeftChange }) {
       {/* Left — original */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-2">
-          <span className="label-muted">{label}</span>
+          <div className="flex items-center gap-2">
+            <span className="label-muted">{label}</span>
+            {labelSuffix}
+          </div>
           <CopyButton text={leftValue} />
         </div>
         <textarea

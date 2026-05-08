@@ -55,6 +55,7 @@ export default function App() {
   const [sections, setSections] = useState(INITIAL_SECTIONS)
   const [error, setError] = useState(null)
   const [conceptStatus, setConceptStatus] = useState('idle')
+  const [conceptCreationStatus, setConceptCreationStatus] = useState('idle')
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -72,6 +73,7 @@ export default function App() {
   // Per-slot regeneration status
   const [imageRegenStatus, setImageRegenStatus] = useState({})
   const [videoRegenStatus, setVideoRegenStatus] = useState({})
+  const [textRegenStatus, setTextRegenStatus]   = useState({})
 
   useEffect(() => {
     if (conceptStatus === 'done' || conceptStatus === 'error') {
@@ -79,6 +81,13 @@ export default function App() {
       return () => clearTimeout(t)
     }
   }, [conceptStatus])
+
+  useEffect(() => {
+    if (conceptCreationStatus === 'done' || conceptCreationStatus === 'error') {
+      const t = setTimeout(() => setConceptCreationStatus('idle'), 10000)
+      return () => clearTimeout(t)
+    }
+  }, [conceptCreationStatus])
 
   const updateStep = (id, status, message = '') =>
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
@@ -262,6 +271,8 @@ export default function App() {
     setActiveVideoSlot(null)
     setImageRegenStatus({})
     setVideoRegenStatus({})
+    setTextRegenStatus({})
+    setConceptCreationStatus('idle')
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -288,6 +299,87 @@ export default function App() {
     } catch (err) {
       setConceptStatus('error')
       setError(`Create concept failed: ${err.message}`)
+    }
+  }
+
+  const handleConceptCreation = async () => {
+    if (conceptCreationStatus === 'loading') return
+    setConceptCreationStatus('loading')
+    try {
+      const payload = {
+        client:     selectedClient?.name ?? '',
+        identifier: selectedClient?.identifier ?? '',
+        drive_url:  selectedClient?.driveFolderUrl ?? '',
+        sheet_id:   selectedClient?.clientSheetId ?? '',
+        product:    selectedProduct,
+        images: IMAGE_SLOTS.map((slot, i) => {
+          const s = imageSections[i] ?? {}
+          const p = s.parsed ?? {}
+          return {
+            id:               slot.id,
+            label:            slot.label,
+            group:            slot.group,
+            text:             p.text ?? '',
+            imageDescription: p.imageDescription ?? '',
+            realPhoto: {
+              needed:      p.realPhoto?.needed ?? '',
+              description: p.realPhoto?.description ?? '',
+              person:      p.realPhoto?.person ?? '',
+              location:    p.realPhoto?.location ?? '',
+            },
+            rendering3d: {
+              needed:      p.rendering3d?.needed ?? '',
+              description: p.rendering3d?.description ?? '',
+              person:      p.rendering3d?.person ?? '',
+              location:    p.rendering3d?.location ?? '',
+            },
+          }
+        }),
+        videos: VIDEO_SLOTS.map((slot, i) => {
+          const s = videoSections[i] ?? {}
+          const p = s.parsed ?? {}
+          return {
+            id:               slot.id,
+            label:            slot.label,
+            text:             p.text ?? '',
+            imageDescription: p.imageDescription ?? '',
+            realVideo: {
+              description: p.realVideo?.description ?? '',
+              person:      p.realVideo?.person ?? '',
+              location:    p.realVideo?.location ?? '',
+            },
+            rendering3d: {
+              needed:      p.rendering3d?.needed ?? '',
+              description: p.rendering3d?.description ?? '',
+              person:      p.rendering3d?.person ?? '',
+              location:    p.rendering3d?.location ?? '',
+            },
+          }
+        }),
+      }
+      const res = await fetch('https://hook.eu1.make.com/4a4tid8i1vianrffyo7fcchh14rrs367', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(`Webhook error ${res.status}`)
+      setConceptCreationStatus('done')
+    } catch {
+      setConceptCreationStatus('error')
+    }
+  }
+
+  const handleRegenerateText = async (sectionId) => {
+    setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
+    try {
+      const raw = await callClaude(SYSTEM_PROMPTS[sectionId], sections[sectionId].input)
+      const output = sectionId === 'keywords'
+        ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
+        : raw
+      setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
+      setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
+    } catch {
+      setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
     }
   }
 
@@ -327,16 +419,25 @@ export default function App() {
   const handleSectionChange = sectionId => {
     setActivePanel('text')
     setActiveSection(sectionId)
+    if (textRegenStatus[sectionId] === 'done') {
+      setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
+    }
   }
 
   const handleImageSlotChange = index => {
     setActivePanel('image')
     setActiveImageSlot(index)
+    if (imageRegenStatus[index] === 'done') {
+      setImageRegenStatus(prev => ({ ...prev, [index]: null }))
+    }
   }
 
   const handleVideoSlotChange = index => {
     setActivePanel('video')
     setActiveVideoSlot(index)
+    if (videoRegenStatus[index] === 'done') {
+      setVideoRegenStatus(prev => ({ ...prev, [index]: null }))
+    }
   }
 
   const handleSectionTextChange = (field, text) =>
@@ -417,6 +518,9 @@ export default function App() {
               onVideoSlotChange={handleVideoSlotChange}
               imageRegenStatus={imageRegenStatus}
               videoRegenStatus={videoRegenStatus}
+              textRegenStatus={textRegenStatus}
+              conceptCreationStatus={conceptCreationStatus}
+              onConceptCreation={handleConceptCreation}
             />
           </aside>
 
@@ -448,6 +552,8 @@ export default function App() {
                 outputText={sections[activeSection].output}
                 onInputChange={text => handleSectionTextChange('input', text)}
                 onOutputChange={text => handleSectionTextChange('output', text)}
+                regenStatus={textRegenStatus[activeSection] ?? null}
+                onRegenerate={() => handleRegenerateText(activeSection)}
               />
             )}
           </main>
