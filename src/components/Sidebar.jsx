@@ -9,6 +9,7 @@ export default function Sidebar({
   activePanel, activeImageSlot,
   onCreateImages, onImageSlotChange,
   videoSections, activeVideoSlot, onVideoSlotChange,
+  imageRegenStatus = {}, videoRegenStatus = {},
 }) {
   return (
     <div className="h-full flex flex-col p-4 select-none">
@@ -143,11 +144,17 @@ export default function Sidebar({
                     <button
                       key={slot.id}
                       onClick={() => onImageSlotChange(slot.id)}
-                      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      {slot.label}
+                      <span>{slot.label}</span>
+                      {imageRegenStatus[slot.id] === 'loading' && (
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse flex-shrink-0" />
+                      )}
+                      {imageRegenStatus[slot.id] === 'done' && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      )}
                     </button>
                   )
                 })}
@@ -159,11 +166,17 @@ export default function Sidebar({
                     <button
                       key={slot.id}
                       onClick={() => onImageSlotChange(slot.id)}
-                      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      {slot.label}
+                      <span>{slot.label}</span>
+                      {imageRegenStatus[slot.id] === 'loading' && (
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse flex-shrink-0" />
+                      )}
+                      {imageRegenStatus[slot.id] === 'done' && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      )}
                     </button>
                   )
                 })}
@@ -175,11 +188,17 @@ export default function Sidebar({
                     <button
                       key={slot.id}
                       onClick={() => onVideoSlotChange(slot.id)}
-                      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      {slot.label}
+                      <span>{slot.label}</span>
+                      {videoRegenStatus[slot.id] === 'loading' && (
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse flex-shrink-0" />
+                      )}
+                      {videoRegenStatus[slot.id] === 'done' && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      )}
                     </button>
                   )
                 })}

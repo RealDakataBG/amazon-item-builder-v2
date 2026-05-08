@@ -24,13 +24,11 @@ function normalizeScene(raw) {
   }
 }
 
+import { safeJsonParse } from './jsonUtils'
+
 export function parseVideoScenesOutput(rawText) {
   try {
-    const cleaned = rawText
-      .replace(/^```\s*(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/i, '')
-      .trim()
-    const raw = JSON.parse(cleaned)
+    const raw = safeJsonParse(rawText)
     let arr
     if (Array.isArray(raw)) {
       arr = raw
@@ -48,12 +46,17 @@ export function parseVideoScenesOutput(rawText) {
 
 export function parseVideoScene5Output(rawText) {
   try {
-    const cleaned = rawText
-      .replace(/^```\s*(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/i, '')
-      .trim()
-    const raw = JSON.parse(cleaned)
-    const obj = Array.isArray(raw) ? raw[0] : raw
+    const raw = safeJsonParse(rawText)
+    // Unwrap {scene_5: {...}} wrapper if present
+    let obj
+    if (Array.isArray(raw)) {
+      obj = raw[0]
+    } else if (raw && typeof raw === 'object') {
+      const keys = Object.keys(raw)
+      obj = (keys.length === 1 && /^scene_/i.test(keys[0])) ? raw[keys[0]] : raw
+    } else {
+      obj = raw
+    }
     return { data: normalizeScene(obj), error: null }
   } catch (e) {
     return { data: null, error: e.message }

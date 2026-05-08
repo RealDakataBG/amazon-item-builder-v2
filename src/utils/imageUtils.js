@@ -1,3 +1,5 @@
+import { safeJsonParse } from './jsonUtils'
+
 function normalizeBlock(block = {}) {
   return {
     needed:      block.needed      ?? 'No',
@@ -9,11 +11,7 @@ function normalizeBlock(block = {}) {
 
 export function parseImageOutput(rawText) {
   try {
-    const cleaned = rawText
-      .replace(/^```\s*(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/i, '')
-      .trim()
-    const raw = JSON.parse(cleaned)
+    const raw = safeJsonParse(rawText)
 
     // Normalize keys — Claude sometimes returns snake_case variants
     const data = {

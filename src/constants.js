@@ -24,6 +24,7 @@ export const SECTIONS = [
 
 export const IMAGE_SYSTEM_PROMPT = `You are an expert Amazon product image concept creator.
 Return ONLY raw JSON — no markdown, no code fences, no explanation, no trailing text.
+CRITICAL: Never use double-quote characters (") inside string values. Use single quotes or German guillemets (« ») instead.
 Use EXACTLY these camelCase key names:
 {
   "text": "<short description in German>",
@@ -48,6 +49,7 @@ export const USP_SYSTEM_PROMPT = `You are an expert product analyst. Analyze the
 export const VIDEO_SYSTEM_PROMPT = `You are an expert Amazon product video concept creator.
 Return ONLY a raw JSON array of exactly 4 scene objects — no markdown, no code fences, no explanation, no wrapper object, no scene_N keys.
 Start your response with [ and end with ].
+CRITICAL: Never use double-quote characters (") inside string values. Use single quotes or German guillemets (« ») instead.
 Use EXACTLY these camelCase key names for each scene:
 [
   {
@@ -72,6 +74,7 @@ If rendering3d needed is "No", all other rendering3d fields must be "No".`
 export const VIDEO_SCENE5_SYSTEM_PROMPT = `You are an expert Amazon product video concept creator specializing in product variant showcases.
 Return ONLY a raw JSON object for a single scene — no markdown, no code fences, no explanation, no wrapper object, no scene_N keys.
 Start your response with { and end with }.
+CRITICAL: Never use double-quote characters (") inside string values. Use single quotes or German guillemets (« ») instead.
 Use EXACTLY these camelCase key names:
 {
   "text": "<short description in German>",
@@ -112,6 +115,33 @@ export const IMAGE_SLOTS = [
   { id: 9,  label: 'A+ Image 4',      group: 'aplus' },
   { id: 10, label: 'A+ Image 5',      group: 'aplus' },
 ]
+
+export const VIDEO_SCENE_SINGLE_SYSTEM_PROMPT = `You are an expert Amazon product video concept creator.
+Return ONLY a raw JSON object for a single scene — no markdown, no code fences, no explanation, no wrapper object, no scene_N keys.
+Start your response with { and end with }.
+CRITICAL: Never use double-quote characters (") inside string values. Use single quotes or German guillemets (« ») instead.
+Use EXACTLY these camelCase key names:
+{
+  "text": "<short description in German>",
+  "imageDescription": "<short scene description in German>",
+  "realVideo": {
+    "description": "<German description of what happens in this video scene>",
+    "person": "Yes or No",
+    "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car>"
+  },
+  "rendering3d": {
+    "needed": "Yes or No",
+    "description": "<German description, or No if needed is No>",
+    "person": "Yes or No",
+    "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car|No>"
+  }
+}
+Studio-first rule: default to Studio unless the concept truly requires another location.
+If rendering3d needed is "No", all other rendering3d fields must be "No".`
+
+export const EDIT_SYSTEM_PROMPT = `You are an expert content editor for Amazon product listings and image/video concepts.
+You will receive an original text and the user's change request.
+Rewrite the original text according to the change request. Return ONLY the updated text, no explanation, no commentary.`
 
 export const LOCATION_OPTIONS = [
   'Studio', 'Bedroom', 'Kitchen', 'Outdoors city', 'Outdoors nature',

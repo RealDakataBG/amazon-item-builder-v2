@@ -9,8 +9,9 @@ import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompt
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SLOTS } from './constants'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
+import { callClaude } from './utils/claude'
 
 const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
 
@@ -68,6 +69,10 @@ export default function App() {
   const [videoSections, setVideoSections]     = useState(INITIAL_VIDEO_SECTIONS)
   const [activeVideoSlot, setActiveVideoSlot] = useState(null)
 
+  // Per-slot regeneration status
+  const [imageRegenStatus, setImageRegenStatus] = useState({})
+  const [videoRegenStatus, setVideoRegenStatus] = useState({})
+
   useEffect(() => {
     if (conceptStatus === 'done' || conceptStatus === 'error') {
       const t = setTimeout(() => setConceptStatus('idle'), 10000)
@@ -80,20 +85,6 @@ export default function App() {
 
   const updateImageStep = (id, status, message = '') =>
     setImageSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
-
-  const callClaude = async (systemPrompt, userPrompt) => {
-    const res = await fetch('/api/claude-generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemPrompt, userPrompt }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error || `Claude API error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.text
-  }
 
   const runGeneration = async (client, productTab) => {
     setPhase(PHASE.GENERATING)
@@ -269,6 +260,8 @@ export default function App() {
     setProductDescription('')
     setVideoSections(INITIAL_VIDEO_SECTIONS)
     setActiveVideoSlot(null)
+    setImageRegenStatus({})
+    setVideoRegenStatus({})
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -295,6 +288,39 @@ export default function App() {
     } catch (err) {
       setConceptStatus('error')
       setError(`Create concept failed: ${err.message}`)
+    }
+  }
+
+  const handleRegenerateImage = async (slotIndex) => {
+    setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
+    try {
+      const raw = await callClaude(IMAGE_SYSTEM_PROMPT, imageSections[slotIndex].input)
+      const { data, error } = parseImageOutput(raw)
+      setImageSections(prev => {
+        const updated = [...prev]
+        updated[slotIndex] = { ...updated[slotIndex], rawOutput: raw, parsed: data, parseError: error }
+        return updated
+      })
+      setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
+    } catch {
+      setImageRegenStatus(prev => ({ ...prev, [slotIndex]: null }))
+    }
+  }
+
+  const handleRegenerateVideo = async (slotIndex) => {
+    setVideoRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
+    try {
+      const sysPrompt = slotIndex === 4 ? VIDEO_SCENE5_SYSTEM_PROMPT : VIDEO_SCENE_SINGLE_SYSTEM_PROMPT
+      const raw = await callClaude(sysPrompt, videoSections[slotIndex].input)
+      const { data, error } = parseVideoScene5Output(raw)
+      setVideoSections(prev => {
+        const updated = [...prev]
+        updated[slotIndex] = { ...updated[slotIndex], rawOutput: raw, parsed: data, parseError: error }
+        return updated
+      })
+      setVideoRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
+    } catch {
+      setVideoRegenStatus(prev => ({ ...prev, [slotIndex]: null }))
     }
   }
 
@@ -389,6 +415,8 @@ export default function App() {
               videoSections={videoSections}
               activeVideoSlot={activeVideoSlot}
               onVideoSlotChange={handleVideoSlotChange}
+              imageRegenStatus={imageRegenStatus}
+              videoRegenStatus={videoRegenStatus}
             />
           </aside>
 
@@ -402,12 +430,16 @@ export default function App() {
                 slotLabel={IMAGE_SLOTS[activeImageSlot].label}
                 data={imageSections[activeImageSlot]}
                 onChange={(field, subfield, value) => handleImageSectionChange(activeImageSlot, field, subfield, value)}
+                regenStatus={imageRegenStatus[activeImageSlot] ?? null}
+                onRegenerate={() => handleRegenerateImage(activeImageSlot)}
               />
             ) : activePanel === 'video' && activeVideoSlot !== null && videoSections[activeVideoSlot] ? (
               <VideoEditorPanel
                 slotLabel={VIDEO_SLOTS[activeVideoSlot].label}
                 data={videoSections[activeVideoSlot]}
                 onChange={(field, subfield, value) => handleVideoSectionChange(activeVideoSlot, field, subfield, value)}
+                regenStatus={videoRegenStatus[activeVideoSlot] ?? null}
+                onRegenerate={() => handleRegenerateVideo(activeVideoSlot)}
               />
             ) : (
               <EditorPanel
