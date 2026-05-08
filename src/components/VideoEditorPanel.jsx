@@ -6,20 +6,22 @@ const SELECT_CLASS = 'border border-gray-200 rounded-lg px-2 py-1.5 text-sm focu
 
 function RealVideoSection({ block, onChange }) {
   return (
-    <div className="mb-6">
-      <span className="label-muted block mb-3">Real Video</span>
-      <SideBySideField
-        label="Description"
-        leftValue={block.description}
-        onLeftChange={val => onChange('description', val)}
-      />
-      <div className="flex gap-2 flex-wrap mt-2">
+    <div className="mb-8 pt-5 border-t border-gray-100">
+      <span className="text-sm font-semibold text-gray-700 block mb-3">Real Video</span>
+      <div className="flex gap-2 mb-4">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Needed</span>
           <select value="Yes" disabled className={`${SELECT_CLASS} opacity-60 cursor-not-allowed`}>
             <option>Yes</option>
           </select>
         </div>
+      </div>
+      <SideBySideField
+        label="Description"
+        leftValue={block.description}
+        onLeftChange={val => onChange('description', val)}
+      />
+      <div className="flex gap-2 flex-wrap mt-2">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Person</span>
           <select
@@ -59,14 +61,9 @@ function Rendering3dSection({ block, onChange }) {
   }
 
   return (
-    <div className="mb-6">
-      <span className="label-muted block mb-3">3D Rendering</span>
-      <SideBySideField
-        label="Description"
-        leftValue={block.description}
-        onLeftChange={val => onChange('description', val)}
-      />
-      <div className="flex gap-2 flex-wrap mt-2">
+    <div className="mb-8 pt-5 border-t border-gray-100">
+      <span className="text-sm font-semibold text-gray-700 block mb-3">3D Rendering</span>
+      <div className="flex gap-2 mb-4">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Needed</span>
           <select
@@ -78,6 +75,13 @@ function Rendering3dSection({ block, onChange }) {
             <option>No</option>
           </select>
         </div>
+      </div>
+      <SideBySideField
+        label="Description"
+        leftValue={block.description}
+        onLeftChange={val => onChange('description', val)}
+      />
+      <div className="flex gap-2 flex-wrap mt-2">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Person</span>
           <select

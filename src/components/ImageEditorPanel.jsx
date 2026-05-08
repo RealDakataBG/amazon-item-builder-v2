@@ -15,14 +15,9 @@ function ImageTypeSection({ label, block, onChange }) {
   }
 
   return (
-    <div className="mb-6">
-      <span className="label-muted block mb-3">{label}</span>
-      <SideBySideField
-        label="Description"
-        leftValue={block.description}
-        onLeftChange={val => onChange('description', val)}
-      />
-      <div className="flex gap-2 flex-wrap mt-2">
+    <div className="mb-8 pt-5 border-t border-gray-100">
+      <span className="text-sm font-semibold text-gray-700 block mb-3">{label}</span>
+      <div className="flex gap-2 mb-4">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Needed</span>
           <select
@@ -34,6 +29,13 @@ function ImageTypeSection({ label, block, onChange }) {
             <option>No</option>
           </select>
         </div>
+      </div>
+      <SideBySideField
+        label="Description"
+        leftValue={block.description}
+        onLeftChange={val => onChange('description', val)}
+      />
+      <div className="flex gap-2 flex-wrap mt-2">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-400 font-medium">Person</span>
           <select

@@ -62,10 +62,11 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
 
       {/* Output — side-by-side */}
       <SideBySideField
-        label="Output (Claude)"
+        label="Output"
         labelSuffix={keywordsSuffix}
         leftValue={outputText}
         onLeftChange={onOutputChange}
+        leftMinHeight="min-h-48"
       />
     </div>
   )

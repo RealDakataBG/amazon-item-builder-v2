@@ -3,7 +3,7 @@ import { callClaude } from '../utils/claude'
 import { EDIT_SYSTEM_PROMPT } from '../constants'
 import CopyButton from './CopyButton'
 
-export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange }) {
+export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange, leftMinHeight = 'min-h-32' }) {
   const [rightValue, setRightValue] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
 
@@ -26,7 +26,7 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
   return (
     <div className="flex gap-4">
       {/* Left — original */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="label-muted">{label}</span>
@@ -37,13 +37,13 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
         <textarea
           value={leftValue}
           onChange={e => onLeftChange(e.target.value)}
-          className="input-base text-sm leading-relaxed resize-y min-h-20 w-full"
+          className={`input-base text-sm leading-relaxed resize-y w-full ${leftMinHeight}`}
           spellCheck={false}
         />
       </div>
 
       {/* Right — AI editor */}
-      <div className="flex-1 min-w-0">
+      <div className="w-52 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-gray-300 font-medium">Edit request</span>
           <button
