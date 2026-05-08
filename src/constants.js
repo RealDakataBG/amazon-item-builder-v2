@@ -45,6 +45,58 @@ If needed is "No", every other field in that block must also be "No".`
 
 export const USP_SYSTEM_PROMPT = `You are an expert product analyst. Analyze the product information and output the result. Return only the analysis, no commentary.`
 
+export const VIDEO_SYSTEM_PROMPT = `You are an expert Amazon product video concept creator.
+Return ONLY a raw JSON array of exactly 4 scene objects — no markdown, no code fences, no explanation.
+Use EXACTLY these camelCase key names for each scene:
+[
+  {
+    "text": "<short description in German>",
+    "imageDescription": "<short scene description in German>",
+    "realVideo": {
+      "description": "<German description of what happens in this video scene>",
+      "person": "Yes or No",
+      "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car>"
+    },
+    "rendering3d": {
+      "needed": "Yes or No",
+      "description": "<German description, or No if needed is No>",
+      "person": "Yes or No",
+      "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car|No>"
+    }
+  }
+]
+Studio-first rule: default to Studio unless the concept truly requires another location. Use person/actor only when necessary.
+If rendering3d needed is "No", all other rendering3d fields must be "No".`
+
+export const VIDEO_SCENE5_SYSTEM_PROMPT = `You are an expert Amazon product video concept creator specializing in product variant showcases.
+Return ONLY a raw JSON object for a single scene — no markdown, no code fences, no explanation.
+Use EXACTLY these camelCase key names:
+{
+  "text": "<short description in German>",
+  "imageDescription": "<short scene description in German>",
+  "realVideo": {
+    "description": "<German description showing all product variants/options>",
+    "person": "Yes or No",
+    "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car>"
+  },
+  "rendering3d": {
+    "needed": "Yes or No",
+    "description": "<German description, or No if needed is No>",
+    "person": "Yes or No",
+    "location": "<Studio|Bedroom|Kitchen|Outdoors city|Outdoors nature|Office|Living room|Bathroom|Workshop / Werkstatt|Car|No>"
+  }
+}
+Studio-first rule applies. This scene showcases product variants (colours, sizes, etc.).
+If rendering3d needed is "No", all other rendering3d fields must be "No".`
+
+export const VIDEO_SLOTS = [
+  { id: 0, label: 'Scene 1', group: 'video' },
+  { id: 1, label: 'Scene 2', group: 'video' },
+  { id: 2, label: 'Scene 3', group: 'video' },
+  { id: 3, label: 'Scene 4', group: 'video' },
+  { id: 4, label: 'Scene 5', group: 'video' },
+]
+
 export const IMAGE_SLOTS = [
   { id: 0,  label: 'Product Image 1', group: 'product' },
   { id: 1,  label: 'Product Image 2', group: 'product' },

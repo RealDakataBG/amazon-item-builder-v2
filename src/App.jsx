@@ -5,10 +5,12 @@ import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
-import { fetchProductData, fetchPromptSheet, fetchImagePrompts } from './utils/sheets'
+import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS } from './constants'
+import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SLOTS } from './constants'
+import VideoEditorPanel from './components/VideoEditorPanel'
 
 const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
 
@@ -20,12 +22,17 @@ const INITIAL_STEPS = [
 ]
 
 const INITIAL_IMAGE_STEPS = [
-  { id: 'fetch_prompts', label: 'Fetching image prompts',              status: 'pending', message: '' },
-  { id: 'usp1',          label: 'Analyzing product features (Step 1)', status: 'pending', message: '' },
-  { id: 'usp2',          label: 'Analyzing product features (Step 2)', status: 'pending', message: '' },
-  { id: 'concepts',      label: 'Generating 11 image concepts',        status: 'pending', message: '' },
-  { id: 'done',          label: 'Image concepts ready',                status: 'pending', message: '' },
+  { id: 'fetch_prompts', label: 'Fetching prompts & variants',           status: 'pending', message: '' },
+  { id: 'usp1',          label: 'Analyzing product features (Step 1)',   status: 'pending', message: '' },
+  { id: 'usp2',          label: 'Analyzing product features (Step 2)',   status: 'pending', message: '' },
+  { id: 'concepts',      label: 'Generating 11 image concepts',          status: 'pending', message: '' },
+  { id: 'video',         label: 'Generating 5 video scene concepts',     status: 'pending', message: '' },
+  { id: 'done',          label: 'All concepts ready',                    status: 'pending', message: '' },
 ]
+
+const INITIAL_VIDEO_SECTIONS = Array.from({ length: 5 }, () => ({
+  input: '', rawOutput: '', parsed: null, parseError: null,
+}))
 
 const INITIAL_SECTIONS = {
   title:       { input: '', output: '' },
@@ -56,6 +63,10 @@ export default function App() {
   const [imageSections, setImageSections]     = useState(INITIAL_IMAGE_SECTIONS)
   const [imageStatus, setImageStatus]         = useState('idle')
   const [productDescription, setProductDescription] = useState('')
+
+  // Video generation state
+  const [videoSections, setVideoSections]     = useState(INITIAL_VIDEO_SECTIONS)
+  const [activeVideoSlot, setActiveVideoSlot] = useState(null)
 
   useEffect(() => {
     if (conceptStatus === 'done' || conceptStatus === 'error') {
@@ -162,12 +173,16 @@ export default function App() {
     setImageSteps(INITIAL_IMAGE_STEPS.map(s => ({ ...s })))
 
     try {
-      // 1. Fetch all image prompt tabs in parallel
+      // 1. Fetch all prompts and product variants in parallel
       updateImageStep('fetch_prompts', 'running')
-      const imagePromptData = await fetchImagePrompts()
+      const [imagePromptData, videoPromptData, variants] = await Promise.all([
+        fetchImagePrompts(),
+        fetchVideoPrompts(),
+        fetchProductVariants(selectedClient.clientSheetId, selectedProduct),
+      ])
       updateImageStep('fetch_prompts', 'done')
 
-      // 2. USP Step 1 (sequential, hidden from user)
+      // 2. USP Step 1 (sequential)
       updateImageStep('usp1', 'running')
       const usp1Output = await callClaude(USP_SYSTEM_PROMPT, `${imagePromptData.usp1Prompt}\n${productDescription}`)
       updateImageStep('usp1', 'done')
@@ -187,13 +202,37 @@ export default function App() {
         })
       )
       updateImageStep('concepts', 'done')
-      updateImageStep('done', 'done')
 
-      // 5. Parse outputs and populate imageSections
+      // 5. Parse image outputs
       setImageSections(results.map(({ userPrompt, raw }) => {
         const { data, error } = parseImageOutput(raw)
         return { input: userPrompt, rawOutput: raw, parsed: data, parseError: error }
       }))
+
+      // 6. Video scenes — scenes 1-4 and scene 5 in parallel
+      updateImageStep('video', 'running')
+      const videoScenesPrompt = buildVideoScenesPrompt(videoPromptData.scenesPrompt, sections.description.output, usp2Output)
+      const videoScene5Prompt = buildVideoScene5Prompt(videoPromptData.scene5Prompt, sections.description.output, variants, usp2Output)
+      const [rawScenes14, rawScene5] = await Promise.all([
+        callClaude(VIDEO_SYSTEM_PROMPT, videoScenesPrompt),
+        callClaude(VIDEO_SCENE5_SYSTEM_PROMPT, videoScene5Prompt),
+      ])
+      updateImageStep('video', 'done')
+      updateImageStep('done', 'done')
+
+      // 7. Parse video results
+      const { data: scenes14, error: err14 } = parseVideoScenesOutput(rawScenes14)
+      const { data: scene5data, error: err5 } = parseVideoScene5Output(rawScene5)
+      const allScenes = [
+        ...(scenes14 ?? Array(4).fill(null)),
+        scene5data,
+      ]
+      setVideoSections(allScenes.map((parsed, i) => ({
+        input:     i < 4 ? videoScenesPrompt : videoScene5Prompt,
+        rawOutput: i < 4 ? rawScenes14       : rawScene5,
+        parsed,
+        parseError: i < 4 ? err14 : err5,
+      })))
       setImageStatus('done')
 
     } catch (err) {
@@ -228,6 +267,8 @@ export default function App() {
     setActivePanel('text')
     setActiveImageSlot(null)
     setProductDescription('')
+    setVideoSections(INITIAL_VIDEO_SECTIONS)
+    setActiveVideoSlot(null)
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -267,11 +308,32 @@ export default function App() {
     setActiveImageSlot(index)
   }
 
+  const handleVideoSlotChange = index => {
+    setActivePanel('video')
+    setActiveVideoSlot(index)
+  }
+
   const handleSectionTextChange = (field, text) =>
     setSections(prev => ({ ...prev, [activeSection]: { ...prev[activeSection], [field]: text } }))
 
   const handleImageSectionChange = (slotIndex, field, subfield, value) => {
     setImageSections(prev => {
+      const updated = [...prev]
+      const slot = { ...updated[slotIndex] }
+      if (field === 'input') {
+        slot.input = value
+      } else if (subfield) {
+        slot.parsed = { ...slot.parsed, [field]: { ...slot.parsed[field], [subfield]: value } }
+      } else {
+        slot.parsed = { ...slot.parsed, [field]: value }
+      }
+      updated[slotIndex] = slot
+      return updated
+    })
+  }
+
+  const handleVideoSectionChange = (slotIndex, field, subfield, value) => {
+    setVideoSections(prev => {
       const updated = [...prev]
       const slot = { ...updated[slotIndex] }
       if (field === 'input') {
@@ -324,6 +386,9 @@ export default function App() {
               activeImageSlot={activeImageSlot}
               onCreateImages={handleCreateImages}
               onImageSlotChange={handleImageSlotChange}
+              videoSections={videoSections}
+              activeVideoSlot={activeVideoSlot}
+              onVideoSlotChange={handleVideoSlotChange}
             />
           </aside>
 
@@ -337,6 +402,12 @@ export default function App() {
                 slotLabel={IMAGE_SLOTS[activeImageSlot].label}
                 data={imageSections[activeImageSlot]}
                 onChange={(field, subfield, value) => handleImageSectionChange(activeImageSlot, field, subfield, value)}
+              />
+            ) : activePanel === 'video' && activeVideoSlot !== null ? (
+              <VideoEditorPanel
+                slotLabel={VIDEO_SLOTS[activeVideoSlot].label}
+                data={videoSections[activeVideoSlot]}
+                onChange={(field, subfield, value) => handleVideoSectionChange(activeVideoSlot, field, subfield, value)}
               />
             ) : (
               <EditorPanel

@@ -76,3 +76,16 @@ export async function fetchImagePrompts() {
     aplusPrompts:   [0,2,4,6,8].map(i => aplusRows?.[i]?.[0] ?? ''),
   }
 }
+
+export async function fetchVideoPrompts() {
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Video'!B1:B3")
+  return {
+    scenesPrompt: values?.[0]?.[0] ?? '',
+    scene5Prompt: values?.[2]?.[0] ?? '',
+  }
+}
+
+export async function fetchProductVariants(clientSheetId, tabName) {
+  const values = await fetchRange(clientSheetId, `'${tabName}'!B7:B100`)
+  return values.filter(row => row[0]).map(row => row[0])
+}

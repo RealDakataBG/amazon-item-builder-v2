@@ -1,4 +1,4 @@
-import { SECTIONS, IMAGE_SLOTS } from '../constants'
+import { SECTIONS, IMAGE_SLOTS, VIDEO_SLOTS } from '../constants'
 
 export default function Sidebar({
   clientName, productName,
@@ -8,6 +8,7 @@ export default function Sidebar({
   imageGenerating, imageStatus, imageSections,
   activePanel, activeImageSlot,
   onCreateImages, onImageSlotChange,
+  videoSections, activeVideoSlot, onVideoSlotChange,
 }) {
   return (
     <div className="h-full flex flex-col p-4 select-none">
@@ -158,6 +159,22 @@ export default function Sidebar({
                     <button
                       key={slot.id}
                       onClick={() => onImageSlotChange(slot.id)}
+                      className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {slot.label}
+                    </button>
+                  )
+                })}
+
+                <p className="label-muted px-1 mt-3 mb-1">Video Scenes</p>
+                {VIDEO_SLOTS.map(slot => {
+                  const isActive = activePanel === 'video' && activeVideoSlot === slot.id
+                  return (
+                    <button
+                      key={slot.id}
+                      onClick={() => onVideoSlotChange(slot.id)}
                       className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
                       }`}
