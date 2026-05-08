@@ -17,7 +17,7 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
   ) : null
 
   return (
-    <div className="relative h-full flex flex-col p-8 max-w-5xl">
+    <div className="relative h-full flex flex-col p-8 pb-24 max-w-5xl">
       {/* Shimmer overlay while regenerating */}
       {regenStatus === 'loading' && (
         <div className="absolute inset-0 z-10 bg-white/70 animate-pulse rounded-xl pointer-events-auto" />
