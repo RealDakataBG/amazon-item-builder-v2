@@ -778,7 +778,7 @@ export default function App() {
 
           {listingModal.open && (
             <ConceptResultModal
-              title="Create Concept — Listing"
+              title="Create Concept | Listing"
               status={listingModal.status}
               results={listingModal.results}
               errorMsg={listingModal.errorMsg}
@@ -788,7 +788,7 @@ export default function App() {
 
           {visualsModal.open && (
             <ConceptResultModal
-              title="Concept Creation — Visuals"
+              title="Concept Creation | Visuals"
               status={visualsModal.status}
               results={visualsModal.results}
               errorMsg={visualsModal.errorMsg}
