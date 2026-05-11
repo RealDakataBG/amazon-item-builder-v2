@@ -9,8 +9,9 @@ import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompt
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS } from './constants'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
+import VariantsModal from './components/VariantsModal'
 import { callClaude } from './utils/claude'
 
 const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
@@ -56,6 +57,10 @@ export default function App() {
   const [error, setError] = useState(null)
   const [conceptStatus, setConceptStatus] = useState('idle')
   const [conceptCreationStatus, setConceptCreationStatus] = useState('idle')
+  const [variants, setVariants] = useState([])
+  const [showVariantsModal, setShowVariantsModal] = useState(false)
+  const [variantStatus, setVariantStatus] = useState('idle')
+  const [variantProgress, setVariantProgress] = useState('')
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -175,11 +180,12 @@ export default function App() {
     try {
       // 1. Fetch all prompts and product variants in parallel
       updateImageStep('fetch_prompts', 'running')
-      const [imagePromptData, videoPromptData, variants] = await Promise.all([
+      const [imagePromptData, videoPromptData, variantData] = await Promise.all([
         fetchImagePrompts(),
         fetchVideoPrompts(),
         fetchProductVariants(selectedClient.clientSheetId, selectedProduct),
       ])
+      setVariants(variantData)
       updateImageStep('fetch_prompts', 'done')
 
       // 2. USP Step 1 (sequential)
@@ -212,7 +218,7 @@ export default function App() {
       // 6. Video scenes — scenes 1-4 and scene 5 in parallel
       updateImageStep('video', 'running')
       const videoScenesPrompt = buildVideoScenesPrompt(videoPromptData.scenesPrompt, sections.description.output, usp2Output)
-      const videoScene5Prompt = buildVideoScene5Prompt(videoPromptData.scene5Prompt, sections.description.output, variants, usp2Output)
+      const videoScene5Prompt = buildVideoScene5Prompt(videoPromptData.scene5Prompt, sections.description.output, variantData.map(v => v.name), usp2Output)
       const [rawScenes14, rawScene5] = await Promise.all([
         callClaude(VIDEO_SYSTEM_PROMPT, videoScenesPrompt),
         callClaude(VIDEO_SCENE5_SYSTEM_PROMPT, videoScene5Prompt),
@@ -273,6 +279,10 @@ export default function App() {
     setVideoRegenStatus({})
     setTextRegenStatus({})
     setConceptCreationStatus('idle')
+    setVariants([])
+    setShowVariantsModal(false)
+    setVariantStatus('idle')
+    setVariantProgress('')
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -288,6 +298,7 @@ export default function App() {
           drive_url:   selectedClient?.driveFolderUrl ?? '',
           sheet_id:    selectedClient?.clientSheetId ?? '',
           product:     selectedProduct,
+          variation:   'base',
           title:       sections.title.output,
           bullets:     sections.bullets.output,
           description: sections.description.output,
@@ -312,6 +323,7 @@ export default function App() {
         drive_url:  selectedClient?.driveFolderUrl ?? '',
         sheet_id:   selectedClient?.clientSheetId ?? '',
         product:    selectedProduct,
+        variation:  'base',
         images: IMAGE_SLOTS.map((slot, i) => {
           const s = imageSections[i] ?? {}
           const p = s.parsed ?? {}
@@ -366,6 +378,96 @@ export default function App() {
       setConceptCreationStatus('done')
     } catch {
       setConceptCreationStatus('error')
+    }
+  }
+
+  const handleGenerateVariants = async (selectedVariants) => {
+    setVariantStatus('generating')
+    try {
+      for (let i = 0; i < selectedVariants.length; i++) {
+        const v = selectedVariants[i]
+        const variantCtx = `Variant name: ${v.name}\nVariant specification: ${v.spec}`
+
+        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: generating listing…`)
+        const [titleVar, bulletsVar, descVar] = await Promise.all([
+          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.title.output}\n\n${variantCtx}`),
+          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.bullets.output}\n\n${variantCtx}`),
+          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.description.output}\n\n${variantCtx}`),
+        ])
+        const kwVar = await callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.keywords.output}\n\n${variantCtx}`)
+
+        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: generating images…`)
+        const imageVarResults = await Promise.all(
+          imageSections.map(sec =>
+            callClaude(VARIANT_IMAGE_SYSTEM_PROMPT, `Original concept (JSON):\n${sec.rawOutput}\n\n${variantCtx}`)
+              .then(raw => parseImageOutput(raw))
+          )
+        )
+
+        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: sending listing…`)
+        await fetch('https://hook.eu1.make.com/jjr7dru5kpneiucti9v9d7fc1wizkkiu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client:      selectedClient?.name ?? '',
+            identifier:  Number(selectedClient?.identifier),
+            drive_url:   selectedClient?.driveFolderUrl ?? '',
+            sheet_id:    selectedClient?.clientSheetId ?? '',
+            product:     selectedProduct,
+            variation:   v.number,
+            title:       titleVar,
+            bullets:     bulletsVar,
+            description: descVar,
+            keywords:    kwVar,
+          }),
+        })
+
+        await new Promise(r => setTimeout(r, 15000))
+
+        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: sending visuals…`)
+        await fetch('https://hook.eu1.make.com/4a4tid8i1vianrffyo7fcchh14rrs367', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client:     selectedClient?.name ?? '',
+            identifier: selectedClient?.identifier ?? '',
+            drive_url:  selectedClient?.driveFolderUrl ?? '',
+            sheet_id:   selectedClient?.clientSheetId ?? '',
+            product:    selectedProduct,
+            variation:  v.number,
+            images: IMAGE_SLOTS.map((slot, idx) => {
+              const p = imageVarResults[idx]?.data ?? {}
+              return {
+                id: slot.id, label: slot.label, group: slot.group,
+                text:             p.text ?? '',
+                imageDescription: p.imageDescription ?? '',
+                realPhoto:   { needed: p.realPhoto?.needed ?? '', description: p.realPhoto?.description ?? '', person: p.realPhoto?.person ?? '', location: p.realPhoto?.location ?? '' },
+                rendering3d: { needed: p.rendering3d?.needed ?? '', description: p.rendering3d?.description ?? '', person: p.rendering3d?.person ?? '', location: p.rendering3d?.location ?? '' },
+              }
+            }),
+            videos: VIDEO_SLOTS.map((slot, idx) => {
+              const p = videoSections[idx]?.parsed ?? {}
+              return {
+                id: slot.id, label: slot.label,
+                text:             p.text ?? '',
+                imageDescription: p.imageDescription ?? '',
+                realVideo:   { description: p.realVideo?.description ?? '', person: p.realVideo?.person ?? '', location: p.realVideo?.location ?? '' },
+                rendering3d: { needed: p.rendering3d?.needed ?? '', description: p.rendering3d?.description ?? '', person: p.rendering3d?.person ?? '', location: p.rendering3d?.location ?? '' },
+              }
+            }),
+          }),
+        })
+
+        if (i < selectedVariants.length - 1) {
+          setVariantProgress(`Waiting 15s before next variant…`)
+          await new Promise(r => setTimeout(r, 15000))
+        }
+      }
+      setVariantStatus('done')
+      setVariantProgress('All variants generated and sent.')
+    } catch (err) {
+      setVariantStatus('error')
+      setVariantProgress(`Error: ${err.message}`)
     }
   }
 
@@ -527,10 +629,25 @@ export default function App() {
               <>
                 <div className="h-4 w-px bg-gray-200 flex-shrink-0" />
                 <button
-                  disabled
-                  className="flex-shrink-0 flex items-center justify-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white opacity-50 cursor-not-allowed"
+                  onClick={() => setShowVariantsModal(true)}
+                  disabled={imageStatus !== 'done'}
+                  className={`flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    imageStatus !== 'done'
+                      ? 'bg-blue-500 text-white opacity-50 cursor-not-allowed'
+                      : variantStatus === 'generating'
+                      ? 'bg-blue-500 text-white cursor-wait'
+                      : variantStatus === 'done'
+                      ? 'bg-blue-600 text-white opacity-75 cursor-not-allowed'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
                 >
-                  Create Variants
+                  {variantStatus === 'generating' && (
+                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {variantStatus === 'done' ? 'Variants Created ✓' : 'Create Variants'}
                 </button>
               </>
             )}
@@ -599,6 +716,16 @@ export default function App() {
             )}
           </main>
           </div>
+
+          {showVariantsModal && (
+            <VariantsModal
+              variants={variants}
+              status={variantStatus}
+              progress={variantProgress}
+              onClose={() => setShowVariantsModal(false)}
+              onGenerate={handleGenerateVariants}
+            />
+          )}
         </>
       )}
     </div>

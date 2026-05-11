@@ -86,6 +86,12 @@ export async function fetchVideoPrompts() {
 }
 
 export async function fetchProductVariants(clientSheetId, tabName) {
-  const values = await fetchRange(clientSheetId, `'${tabName}'!B7:B100`)
-  return values.filter(row => row[0]).map(row => row[0])
+  const values = await fetchRange(clientSheetId, `'${tabName}'!A7:C100`)
+  return values
+    .filter(row => row[1])
+    .map(row => ({
+      number: (row[0] ?? '').replace(/\D/g, ''),
+      name:   row[1] ?? '',
+      spec:   row[2] ?? '',
+    }))
 }
