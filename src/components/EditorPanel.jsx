@@ -8,9 +8,9 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
   const byteCount = new TextEncoder().encode(outputText).length
   const keywordsSuffix = section === 'keywords' ? (
     <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-      byteCount >= 200 && byteCount <= 250
-        ? 'bg-emerald-50 text-emerald-600'
-        : 'bg-amber-50 text-amber-600'
+      byteCount > 250
+        ? 'bg-amber-50 text-amber-600'
+        : 'bg-emerald-50 text-emerald-600'
     }`}>
       {byteCount} / 250 B
     </span>
