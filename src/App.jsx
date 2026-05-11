@@ -524,12 +524,15 @@ export default function App() {
               </>
             )}
             {phase === PHASE.DONE && (
-              <button
-                disabled
-                className="flex-shrink-0 flex items-center justify-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white opacity-50 cursor-not-allowed"
-              >
-                Create Variants
-              </button>
+              <>
+                <div className="h-4 w-px bg-gray-200 flex-shrink-0" />
+                <button
+                  disabled
+                  className="flex-shrink-0 flex items-center justify-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white opacity-50 cursor-not-allowed"
+                >
+                  Create Variants
+                </button>
+              </>
             )}
           </header>
 
