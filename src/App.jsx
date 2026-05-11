@@ -12,6 +12,7 @@ import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt,
 import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
 import VariantsModal from './components/VariantsModal'
+import ConceptResultModal from './components/ConceptResultModal'
 import { callClaude } from './utils/claude'
 
 const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
@@ -60,7 +61,10 @@ export default function App() {
   const [variants, setVariants] = useState([])
   const [showVariantsModal, setShowVariantsModal] = useState(false)
   const [variantStatus, setVariantStatus] = useState('idle')
-  const [variantProgress, setVariantProgress] = useState('')
+  const [variantSteps, setVariantSteps] = useState([])
+  const [variantResults, setVariantResults] = useState([])
+  const [listingModal, setListingModal] = useState({ open: false, status: 'idle', results: [], errorMsg: null })
+  const [visualsModal, setVisualsModal] = useState({ open: false, status: 'idle', results: [], errorMsg: null })
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -282,12 +286,20 @@ export default function App() {
     setVariants([])
     setShowVariantsModal(false)
     setVariantStatus('idle')
-    setVariantProgress('')
+    setVariantSteps([])
+    setVariantResults([])
+    setListingModal({ open: false, status: 'idle', results: [], errorMsg: null })
+    setVisualsModal({ open: false, status: 'idle', results: [], errorMsg: null })
     setPhase(PHASE.CLIENT_SELECT)
   }
 
   const handleCreateConcept = async () => {
+    if (conceptStatus === 'done') {
+      setListingModal(prev => ({ ...prev, open: true }))
+      return
+    }
     setConceptStatus('loading')
+    setListingModal({ open: true, status: 'loading', results: [], errorMsg: null })
     try {
       const res = await fetch('https://hook.eu1.make.com/jjr7dru5kpneiucti9v9d7fc1wizkkiu', {
         method: 'POST',
@@ -306,16 +318,23 @@ export default function App() {
         }),
       })
       if (!res.ok) throw new Error(`Webhook error ${res.status}`)
+      const data = await res.json().catch(() => ({}))
       setConceptStatus('done')
+      setListingModal({ open: true, status: 'done', errorMsg: null, results: [{ label: 'Base', driveUrl: data.drive_url ?? null, sheetUrl: data.sheet_url ?? null }] })
     } catch (err) {
       setConceptStatus('error')
-      setError(`Create concept failed: ${err.message}`)
+      setListingModal({ open: true, status: 'error', results: [], errorMsg: err.message })
     }
   }
 
   const handleConceptCreation = async () => {
+    if (conceptCreationStatus === 'done') {
+      setVisualsModal(prev => ({ ...prev, open: true }))
+      return
+    }
     if (conceptCreationStatus === 'loading') return
     setConceptCreationStatus('loading')
+    setVisualsModal({ open: true, status: 'loading', results: [], errorMsg: null })
     try {
       const payload = {
         client:     selectedClient?.name ?? '',
@@ -375,37 +394,61 @@ export default function App() {
         body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error(`Webhook error ${res.status}`)
+      const data = await res.json().catch(() => ({}))
       setConceptCreationStatus('done')
-    } catch {
+      setVisualsModal({ open: true, status: 'done', errorMsg: null, results: [{ label: 'Base', driveUrl: data.drive_url ?? null, sheetUrl: data.sheet_url ?? null }] })
+    } catch (err) {
       setConceptCreationStatus('error')
+      setVisualsModal({ open: true, status: 'error', results: [], errorMsg: err.message })
     }
   }
 
   const handleGenerateVariants = async (selectedVariants) => {
+    const upd = (id, status) =>
+      setVariantSteps(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+
+    // Build the full step list upfront
+    const initialSteps = []
+    selectedVariants.forEach((v, i) => {
+      const label = `${v.name}`
+      initialSteps.push({ id: `v${i}_listing`,      label: `${label} — Generate listing text`,  status: 'pending' })
+      initialSteps.push({ id: `v${i}_images`,        label: `${label} — Generate image concepts`, status: 'pending' })
+      initialSteps.push({ id: `v${i}_send_listing`,  label: `${label} — Send listing`,            status: 'pending' })
+      initialSteps.push({ id: `v${i}_send_visuals`,  label: `${label} — Send visuals`,            status: 'pending' })
+      if (i < selectedVariants.length - 1) {
+        initialSteps.push({ id: `wait_${i}`, label: 'Waiting 15s before next variant…', status: 'pending' })
+      }
+    })
+    setVariantSteps(initialSteps)
+    setVariantResults([])
     setVariantStatus('generating')
+
+    const collectedResults = []
     try {
       for (let i = 0; i < selectedVariants.length; i++) {
         const v = selectedVariants[i]
         const variantCtx = `Variant name: ${v.name}\nVariant specification: ${v.spec}`
 
-        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: generating listing…`)
+        upd(`v${i}_listing`, 'running')
         const [titleVar, bulletsVar, descVar] = await Promise.all([
           callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.title.output}\n\n${variantCtx}`),
           callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.bullets.output}\n\n${variantCtx}`),
           callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.description.output}\n\n${variantCtx}`),
         ])
         const kwVar = await callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.keywords.output}\n\n${variantCtx}`)
+        upd(`v${i}_listing`, 'done')
 
-        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: generating images…`)
+        upd(`v${i}_images`, 'running')
         const imageVarResults = await Promise.all(
           imageSections.map(sec =>
             callClaude(VARIANT_IMAGE_SYSTEM_PROMPT, `Original concept (JSON):\n${sec.rawOutput}\n\n${variantCtx}`)
               .then(raw => parseImageOutput(raw))
           )
         )
+        upd(`v${i}_images`, 'done')
 
-        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: sending listing…`)
-        await fetch('https://hook.eu1.make.com/jjr7dru5kpneiucti9v9d7fc1wizkkiu', {
+        upd(`v${i}_send_listing`, 'running')
+        const listingRes = await fetch('https://hook.eu1.make.com/jjr7dru5kpneiucti9v9d7fc1wizkkiu', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -421,10 +464,14 @@ export default function App() {
             keywords:    kwVar,
           }),
         })
+        const listingData = await listingRes.json().catch(() => ({}))
+        collectedResults.push({ label: v.number, driveUrl: listingData.drive_url ?? null, sheetUrl: listingData.sheet_url ?? null })
+        setVariantResults([...collectedResults])
+        upd(`v${i}_send_listing`, 'done')
 
         await new Promise(r => setTimeout(r, 15000))
 
-        setVariantProgress(`Variant ${i + 1}/${selectedVariants.length}: sending visuals…`)
+        upd(`v${i}_send_visuals`, 'running')
         await fetch('https://hook.eu1.make.com/4a4tid8i1vianrffyo7fcchh14rrs367', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -457,17 +504,18 @@ export default function App() {
             }),
           }),
         })
+        upd(`v${i}_send_visuals`, 'done')
 
         if (i < selectedVariants.length - 1) {
-          setVariantProgress(`Waiting 15s before next variant…`)
+          upd(`wait_${i}`, 'running')
           await new Promise(r => setTimeout(r, 15000))
+          upd(`wait_${i}`, 'done')
         }
       }
       setVariantStatus('done')
-      setVariantProgress('All variants generated and sent.')
     } catch (err) {
       setVariantStatus('error')
-      setVariantProgress(`Error: ${err.message}`)
+      setVariantSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error', message: err.message } : s))
     }
   }
 
@@ -721,9 +769,30 @@ export default function App() {
             <VariantsModal
               variants={variants}
               status={variantStatus}
-              progress={variantProgress}
+              steps={variantSteps}
+              variantResults={variantResults}
               onClose={() => setShowVariantsModal(false)}
               onGenerate={handleGenerateVariants}
+            />
+          )}
+
+          {listingModal.open && (
+            <ConceptResultModal
+              title="Create Concept — Listing"
+              status={listingModal.status}
+              results={listingModal.results}
+              errorMsg={listingModal.errorMsg}
+              onClose={() => setListingModal(prev => ({ ...prev, open: false }))}
+            />
+          )}
+
+          {visualsModal.open && (
+            <ConceptResultModal
+              title="Concept Creation — Visuals"
+              status={visualsModal.status}
+              results={visualsModal.results}
+              errorMsg={visualsModal.errorMsg}
+              onClose={() => setVisualsModal(prev => ({ ...prev, open: false }))}
             />
           )}
         </>
