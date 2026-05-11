@@ -411,12 +411,12 @@ export default function App() {
     const initialSteps = []
     selectedVariants.forEach((v, i) => {
       const label = `${v.name}`
-      initialSteps.push({ id: `v${i}_listing`,      label: `${label} — Generate listing text`,  status: 'pending' })
-      initialSteps.push({ id: `v${i}_images`,        label: `${label} — Generate image concepts`, status: 'pending' })
-      initialSteps.push({ id: `v${i}_send_listing`,  label: `${label} — Send listing`,            status: 'pending' })
-      initialSteps.push({ id: `v${i}_send_visuals`,  label: `${label} — Send visuals`,            status: 'pending' })
+      initialSteps.push({ id: `v${i}_listing`,      label: `${label} → Generate listing text`,  status: 'pending' })
+      initialSteps.push({ id: `v${i}_images`,        label: `${label} → Generate image concepts`, status: 'pending' })
+      initialSteps.push({ id: `v${i}_send_listing`,  label: `${label} → Send listing`,            status: 'pending' })
+      initialSteps.push({ id: `v${i}_send_visuals`,  label: `${label} → Send visuals`,            status: 'pending' })
       if (i < selectedVariants.length - 1) {
-        initialSteps.push({ id: `wait_${i}`, label: 'Waiting 15s before next variant…', status: 'pending' })
+        initialSteps.push({ id: `wait_${i}`, label: 'Generating concept sheet…', status: 'pending' })
       }
     })
     setVariantSteps(initialSteps)

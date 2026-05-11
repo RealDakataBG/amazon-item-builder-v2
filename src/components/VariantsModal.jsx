@@ -49,45 +49,55 @@ export default function VariantsModal({ variants, status, steps, variantResults 
               </div>
             )}
 
-            {/* Done — results table */}
+            {/* Done — results */}
             {isDone && variantResults.length > 0 && (
-              <div className="space-y-4">
-                {/* Single Drive button at top */}
+              <div className="space-y-3">
+
+                {/* Drive Folder — shared card */}
                 {variantResults[0]?.driveUrl && (
                   <a
                     href={variantResults[0].driveUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-amber-400 hover:bg-amber-500 text-white transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors group"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-semibold text-amber-800 flex-1">Drive Folder</span>
+                    <svg className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
-                    Drive Folder
                   </a>
                 )}
 
                 {/* Per-variant Sheet rows */}
-                <div className="space-y-2">
+                <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
                   {variantResults.map(r => (
-                    <div key={r.label} className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gray-500 w-8 flex-shrink-0">{r.label}</span>
+                    <div key={r.label} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{r.label}</span>
+                        <span className="text-sm text-gray-400">Variant {r.label}</span>
+                      </div>
                       {r.sheetUrl ? (
                         <a
                           href={r.sheetUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                           Google Sheet
                         </a>
-                      ) : <span className="text-xs text-gray-300">No Sheet URL</span>}
+                      ) : <span className="text-xs text-gray-300">—</span>}
                     </div>
                   ))}
                 </div>
+
               </div>
             )}
 
