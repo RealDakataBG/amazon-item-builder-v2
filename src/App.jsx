@@ -433,10 +433,8 @@ export default function App() {
       }
     })
     setVariantSteps(initialSteps)
-    setVariantResults([])
     setVariantStatus('generating')
 
-    const collectedResults = []
     try {
       for (let i = 0; i < selectedVariants.length; i++) {
         const v = selectedVariants[i]
@@ -489,8 +487,11 @@ export default function App() {
           }),
         })
         const listingData = await listingRes.json().catch(() => ({}))
-        collectedResults.push({ label: v.number, driveUrl: listingData.drive_url ?? null, sheetUrl: listingData.sheet_url ?? null })
-        setVariantResults([...collectedResults])
+        const newResult = { label: v.number, driveUrl: listingData.drive_url ?? null, sheetUrl: listingData.sheet_url ?? null }
+        setVariantResults(prev => {
+          const merged = [...prev.filter(r => r.label !== v.number), newResult]
+          return merged.sort((a, b) => Number(a.label) - Number(b.label))
+        })
         upd(`v${i}_send_listing`, 'done')
 
         await new Promise(r => setTimeout(r, 15000))

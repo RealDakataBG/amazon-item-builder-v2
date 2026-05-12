@@ -126,7 +126,14 @@ export default function VariantsModal({ variants, status, steps, variantResults 
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white">
                 <tr className="text-xs text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-100">
-                  <th className="px-6 py-3 w-10 text-left"></th>
+                  <th className="px-6 py-3 w-10 text-left">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() => allSelected ? setSelected(new Set()) : selectAll()}
+                      className="w-4 h-4 rounded accent-blue-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-2 py-3 w-12 text-left">#</th>
                   <th className="px-2 py-3 text-left">Name</th>
                   <th className="px-2 py-3 pr-6 text-left">Specification</th>
@@ -164,19 +171,9 @@ export default function VariantsModal({ variants, status, steps, variantResults 
         {/* Footer — only in picker view */}
         {!showProgress && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">
-                {selected.size === 0 ? 'No variants selected' : `${selected.size} variant${selected.size > 1 ? 's' : ''} selected`}
-              </span>
-              {!allSelected && (
-                <button
-                  onClick={selectAll}
-                  className="text-xs font-medium text-blue-500 hover:text-blue-700 transition-colors"
-                >
-                  Select all
-                </button>
-              )}
-            </div>
+            <span className="text-xs text-gray-400">
+              {selected.size === 0 ? 'No variants selected' : `${selected.size} variant${selected.size > 1 ? 's' : ''} selected`}
+            </span>
             <div className="flex items-center gap-3">
               <button onClick={onClose} className="btn-outline px-4 py-1.5">Cancel</button>
               <button
