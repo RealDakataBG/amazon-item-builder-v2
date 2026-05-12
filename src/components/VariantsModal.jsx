@@ -9,6 +9,9 @@ export default function VariantsModal({ variants, status, steps, variantResults 
     return next
   })
 
+  const selectAll = () => setSelected(new Set(variants.map(v => v.number)))
+  const allSelected = variants.length > 0 && selected.size === variants.length
+
   const isRunning    = status === 'generating'
   const isDone       = status === 'done'
   const isError      = status === 'error'
@@ -161,9 +164,19 @@ export default function VariantsModal({ variants, status, steps, variantResults 
         {/* Footer — only in picker view */}
         {!showProgress && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-            <span className="text-xs text-gray-400">
-              {selected.size === 0 ? 'No variants selected' : `${selected.size} variant${selected.size > 1 ? 's' : ''} selected`}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">
+                {selected.size === 0 ? 'No variants selected' : `${selected.size} variant${selected.size > 1 ? 's' : ''} selected`}
+              </span>
+              {!allSelected && (
+                <button
+                  onClick={selectAll}
+                  className="text-xs font-medium text-blue-500 hover:text-blue-700 transition-colors"
+                >
+                  Select all
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <button onClick={onClose} className="btn-outline px-4 py-1.5">Cancel</button>
               <button

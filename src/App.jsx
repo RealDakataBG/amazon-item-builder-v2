@@ -67,6 +67,7 @@ export default function App() {
   const [visualsModal, setVisualsModal] = useState({ open: false, status: 'idle', results: [], errorMsg: null })
   const [generatedVariants, setGeneratedVariants] = useState([])
   const [shotlistStatus, setShotlistStatus] = useState('idle')
+  const [showVariantResults, setShowVariantResults] = useState(false)
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -301,6 +302,7 @@ export default function App() {
     setVisualsModal({ open: false, status: 'idle', results: [], errorMsg: null })
     setGeneratedVariants([])
     setShotlistStatus('idle')
+    setShowVariantResults(false)
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -764,19 +766,20 @@ export default function App() {
                 </div>
               </>
             )}
-            {phase === PHASE.DONE && (
+            {phase === PHASE.DONE && imageStatus === 'done' && (
               <>
                 <div className="h-4 w-px bg-gray-200 flex-shrink-0" />
                 <button
-                  onClick={() => setShowVariantsModal(true)}
-                  disabled={imageStatus !== 'done'}
+                  onClick={() => {
+                    if (variantStatus === 'done') setVariantStatus('idle')
+                    setShowVariantsModal(true)
+                  }}
+                  disabled={variantStatus === 'generating'}
                   className={`flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    imageStatus !== 'done'
-                      ? 'bg-blue-500 text-white opacity-50 cursor-not-allowed'
-                      : variantStatus === 'generating'
+                    variantStatus === 'generating'
                       ? 'bg-blue-500 text-white cursor-wait'
                       : variantStatus === 'done'
-                      ? 'bg-blue-600 text-white opacity-75 cursor-not-allowed'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
                       : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
@@ -788,6 +791,17 @@ export default function App() {
                   )}
                   {variantStatus === 'done' ? 'Variants Created ✓' : 'Create Variants'}
                 </button>
+                {variantResults.length > 0 && (
+                  <button
+                    onClick={() => setShowVariantResults(true)}
+                    title="View generated variants"
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  </button>
+                )}
               </>
             )}
             {phase === PHASE.DONE && imageStatus === 'done' && (
@@ -891,6 +905,65 @@ export default function App() {
               onClose={() => setShowVariantsModal(false)}
               onGenerate={handleGenerateVariants}
             />
+          )}
+
+          {showVariantResults && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-xl w-[480px] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <h2 className="text-base font-semibold text-gray-900">Generated Variants</h2>
+                  <button
+                    onClick={() => setShowVariantResults(false)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-lg leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-6 space-y-3">
+                  {variantResults[0]?.driveUrl && (
+                    <a
+                      href={variantResults[0].driveUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                      </div>
+                      <span className="text-sm font-semibold text-amber-800 flex-1">Drive Folder</span>
+                      <svg className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  )}
+                  <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                    {variantResults.map(r => (
+                      <div key={r.label} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{r.label}</span>
+                          <span className="text-sm text-gray-400">Variant {r.label}</span>
+                        </div>
+                        {r.sheetUrl ? (
+                          <a
+                            href={r.sheetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Google Sheet
+                          </a>
+                        ) : <span className="text-xs text-gray-300">—</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {listingModal.open && (
