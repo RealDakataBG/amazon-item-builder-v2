@@ -65,6 +65,8 @@ export default function App() {
   const [variantResults, setVariantResults] = useState([])
   const [listingModal, setListingModal] = useState({ open: false, status: 'idle', results: [], errorMsg: null })
   const [visualsModal, setVisualsModal] = useState({ open: false, status: 'idle', results: [], errorMsg: null })
+  const [generatedVariants, setGeneratedVariants] = useState([])
+  const [shotlistStatus, setShotlistStatus] = useState('idle')
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -97,6 +99,13 @@ export default function App() {
       return () => clearTimeout(t)
     }
   }, [conceptCreationStatus])
+
+  useEffect(() => {
+    if (shotlistStatus === 'done' || shotlistStatus === 'error') {
+      const t = setTimeout(() => setShotlistStatus('idle'), 10000)
+      return () => clearTimeout(t)
+    }
+  }, [shotlistStatus])
 
   const updateStep = (id, status, message = '') =>
     setSteps(prev => prev.map(s => s.id === id ? { ...s, status, message } : s))
@@ -290,6 +299,8 @@ export default function App() {
     setVariantResults([])
     setListingModal({ open: false, status: 'idle', results: [], errorMsg: null })
     setVisualsModal({ open: false, status: 'idle', results: [], errorMsg: null })
+    setGeneratedVariants([])
+    setShotlistStatus('idle')
     setPhase(PHASE.CLIENT_SELECT)
   }
 
@@ -447,6 +458,17 @@ export default function App() {
         )
         upd(`v${i}_images`, 'done')
 
+        setGeneratedVariants(prev => [
+          ...prev.filter(existing => existing.number !== v.number),
+          {
+            number: v.number,
+            name:   v.name,
+            spec:   v.spec,
+            listing: { title: titleVar, bullets: bulletsVar, description: descVar, keywords: kwVar },
+            images:  imageVarResults,
+          }
+        ])
+
         upd(`v${i}_send_listing`, 'running')
         const listingRes = await fetch('https://hook.eu1.make.com/jjr7dru5kpneiucti9v9d7fc1wizkkiu', {
           method: 'POST',
@@ -516,6 +538,75 @@ export default function App() {
     } catch (err) {
       setVariantStatus('error')
       setVariantSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error', message: err.message } : s))
+    }
+  }
+
+  const handleCreateShotlist = async () => {
+    if (shotlistStatus === 'loading') return
+    setShotlistStatus('loading')
+    try {
+      const commonInfo = {
+        client:     selectedClient?.name ?? '',
+        identifier: selectedClient?.identifier ?? '',
+        drive_url:  selectedClient?.driveFolderUrl ?? '',
+        sheet_id:   selectedClient?.clientSheetId ?? '',
+        product:    selectedProduct,
+      }
+
+      const buildImageShotlist = (parsedImages) =>
+        IMAGE_SLOTS
+          .map((slot, i) => ({ slot, parsed: parsedImages[i] }))
+          .filter(({ parsed }) => parsed?.realPhoto?.needed === 'Yes')
+          .map(({ slot, parsed }) => ({
+            id:    slot.id,
+            label: slot.label,
+            group: slot.group,
+            text:             parsed.text ?? '',
+            imageDescription: parsed.imageDescription ?? '',
+            realPhoto: {
+              description: parsed.realPhoto.description ?? '',
+              person:      parsed.realPhoto.person ?? '',
+              location:    parsed.realPhoto.location ?? '',
+            },
+          }))
+
+      const baseImages = buildImageShotlist(imageSections.map(s => s.parsed))
+
+      const baseVideos = VIDEO_SLOTS.map((slot, i) => {
+        const p = videoSections[i]?.parsed ?? {}
+        return {
+          id:    slot.id,
+          label: slot.label,
+          text:             p.text ?? '',
+          imageDescription: p.imageDescription ?? '',
+          realVideo: {
+            description: p.realVideo?.description ?? '',
+            person:      p.realVideo?.person ?? '',
+            location:    p.realVideo?.location ?? '',
+          },
+        }
+      })
+
+      await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...commonInfo, variation: 'base', images: baseImages, videos: baseVideos }),
+      })
+
+      const sorted = [...generatedVariants].sort((a, b) => Number(a.number) - Number(b.number))
+      for (const variant of sorted) {
+        await new Promise(r => setTimeout(r, 15000))
+        const variantImages = buildImageShotlist(variant.images.map(r => r?.data ?? null))
+        await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...commonInfo, variation: variant.number, images: variantImages }),
+        })
+      }
+
+      setShotlistStatus('done')
+    } catch {
+      setShotlistStatus('error')
     }
   }
 
@@ -696,6 +787,32 @@ export default function App() {
                     </svg>
                   )}
                   {variantStatus === 'done' ? 'Variants Created ✓' : 'Create Variants'}
+                </button>
+              </>
+            )}
+            {phase === PHASE.DONE && imageStatus === 'done' && (
+              <>
+                <div className="h-4 w-px bg-gray-200 flex-shrink-0" />
+                <button
+                  onClick={handleCreateShotlist}
+                  disabled={shotlistStatus === 'loading'}
+                  className={`flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    shotlistStatus === 'loading'
+                      ? 'bg-violet-500 text-white cursor-wait'
+                      : shotlistStatus === 'done'
+                      ? 'bg-violet-500 text-white opacity-75'
+                      : shotlistStatus === 'error'
+                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'bg-violet-500 hover:bg-violet-600 text-white'
+                  }`}
+                >
+                  {shotlistStatus === 'loading' && (
+                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {shotlistStatus === 'done' ? 'Shotlist Sent ✓' : shotlistStatus === 'error' ? 'Retry Shotlist' : 'Create Shotlist'}
                 </button>
               </>
             )}
