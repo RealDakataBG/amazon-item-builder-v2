@@ -593,7 +593,7 @@ export default function App() {
       await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...commonInfo, variation: 'base', images: baseImages, videos: baseVideos }),
+        body: JSON.stringify({ ...commonInfo, variation: 'base', spec: '', images: baseImages, videos: baseVideos }),
       })
 
       const sorted = [...generatedVariants].sort((a, b) => Number(a.number) - Number(b.number))
@@ -603,7 +603,7 @@ export default function App() {
         await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...commonInfo, variation: variant.number, images: variantImages }),
+          body: JSON.stringify({ ...commonInfo, variation: variant.number, spec: variant.spec ?? '', images: variantImages }),
         })
       }
 
