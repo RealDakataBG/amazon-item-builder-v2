@@ -147,14 +147,6 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
           placeholder="Describe what you want changed…"
           spellCheck={false}
         />
-        {rightValue && !aiLoading && pendingOutput === null && (
-          <button
-            onClick={() => { onLeftChange(rightValue); setRightValue('') }}
-            className="mt-1.5 text-xs font-medium px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 transition-colors"
-          >
-            ✓ Accept
-          </button>
-        )}
       </div>
     </div>
   )
