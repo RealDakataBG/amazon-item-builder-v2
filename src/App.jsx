@@ -635,6 +635,7 @@ export default function App() {
       }
 
       setShotlistStatus('done')
+      setShowShotlistResults(true)
     } catch {
       setShotlistStatus('error')
     }
@@ -806,8 +807,6 @@ export default function App() {
                   className={`flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     variantStatus === 'generating'
                       ? 'bg-blue-500 text-white cursor-wait'
-                      : variantStatus === 'done'
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
                       : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
@@ -817,7 +816,7 @@ export default function App() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                   )}
-                  {variantStatus === 'done' ? 'Variants Created ✓' : 'Create Variants'}
+                  Create Variants
                 </button>
                 {variantResults.length > 0 && (
                   <button
