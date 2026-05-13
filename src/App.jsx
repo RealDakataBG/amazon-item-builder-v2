@@ -564,6 +564,7 @@ export default function App() {
             id:    slot.id,
             label: slot.label,
             group: slot.group,
+            type:  'Foto',
             text:             parsed.text ?? '',
             imageDescription: parsed.imageDescription ?? '',
             realPhoto: {
@@ -580,6 +581,7 @@ export default function App() {
         return {
           id:    slot.id,
           label: slot.label,
+          type:  'Video',
           text:             p.text ?? '',
           imageDescription: p.imageDescription ?? '',
           realVideo: {
