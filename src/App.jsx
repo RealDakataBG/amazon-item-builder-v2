@@ -494,17 +494,12 @@ export default function App() {
           }),
         })
         const listingData = await listingRes.json().catch(() => ({}))
-        const newResult = { label: v.number, driveUrl: listingData.drive_url ?? null, sheetUrl: listingData.sheet_url ?? null }
-        setVariantResults(prev => {
-          const merged = [...prev.filter(r => r.label !== v.number), newResult]
-          return merged.sort((a, b) => Number(a.label) - Number(b.label))
-        })
         upd(`v${i}_send_listing`, 'done')
 
         await new Promise(r => setTimeout(r, 15000))
 
         upd(`v${i}_send_visuals`, 'running')
-        await fetch('https://hook.eu1.make.com/4a4tid8i1vianrffyo7fcchh14rrs367', {
+        const visualsRes = await fetch('https://hook.eu1.make.com/4a4tid8i1vianrffyo7fcchh14rrs367', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -536,7 +531,20 @@ export default function App() {
             }),
           }),
         })
+        const visualsData = await visualsRes.json().catch(() => ({}))
         upd(`v${i}_send_visuals`, 'done')
+
+        setVariantResults(prev => {
+          const newResult = {
+            label:           v.number,
+            listingDriveUrl: listingData.drive_url ?? null,
+            listingSheetUrl: listingData.sheet_url ?? null,
+            visualsDriveUrl: visualsData.drive_url ?? null,
+            visualsSheetUrl: visualsData.sheet_url ?? null,
+          }
+          const merged = [...prev.filter(r => r.label !== v.number), newResult]
+          return merged.sort((a, b) => Number(a.label) - Number(b.label))
+        })
 
         if (i < selectedVariants.length - 1) {
           upd(`wait_${i}`, 'running')
@@ -948,7 +956,7 @@ export default function App() {
 
           {showVariantResults && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-2xl shadow-xl w-[480px] flex flex-col">
+              <div className="bg-white rounded-2xl shadow-xl w-[780px] flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                   <h2 className="text-base font-semibold text-gray-900">Generated Variants</h2>
                   <button
@@ -958,47 +966,84 @@ export default function App() {
                     ✕
                   </button>
                 </div>
-                <div className="p-6 space-y-3">
-                  {variantResults[0]?.driveUrl && (
-                    <a
-                      href={variantResults[0].driveUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                        </svg>
-                      </div>
-                      <span className="text-sm font-semibold text-amber-800 flex-1">Drive Folder</span>
-                      <svg className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </a>
-                  )}
-                  <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-                    {variantResults.map(r => (
-                      <div key={r.label} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{r.label}</span>
-                          <span className="text-sm text-gray-400">Variant {r.label}</span>
+                <div className="p-6 flex gap-4">
+                  {/* Listing column */}
+                  <div className="flex-1 space-y-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Listing</p>
+                    {variantResults[0]?.listingDriveUrl && (
+                      <a href={variantResults[0].listingDriveUrl} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors group">
+                        <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                          </svg>
                         </div>
-                        {r.sheetUrl ? (
-                          <a
-                            href={r.sheetUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Google Sheet
-                          </a>
-                        ) : <span className="text-xs text-gray-300">—</span>}
-                      </div>
-                    ))}
+                        <span className="text-sm font-semibold text-amber-800 flex-1">Drive Folder</span>
+                        <svg className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    )}
+                    <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                      {variantResults.map(r => (
+                        <div key={r.label} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{r.label}</span>
+                            <span className="text-sm text-gray-400">Variant {r.label}</span>
+                          </div>
+                          {r.listingSheetUrl ? (
+                            <a href={r.listingSheetUrl} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Google Sheet
+                            </a>
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-px bg-gray-100 flex-shrink-0" />
+
+                  {/* Visuals column */}
+                  <div className="flex-1 space-y-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Visuals</p>
+                    {variantResults[0]?.visualsDriveUrl && (
+                      <a href={variantResults[0].visualsDriveUrl} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors group">
+                        <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-semibold text-amber-800 flex-1">Drive Folder</span>
+                        <svg className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    )}
+                    <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                      {variantResults.map(r => (
+                        <div key={r.label} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{r.label}</span>
+                            <span className="text-sm text-gray-400">Variant {r.label}</span>
+                          </div>
+                          {r.visualsSheetUrl ? (
+                            <a href={r.visualsSheetUrl} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Google Sheet
+                            </a>
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
