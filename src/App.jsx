@@ -67,6 +67,8 @@ export default function App() {
   const [visualsModal, setVisualsModal] = useState({ open: false, status: 'idle', results: [], errorMsg: null })
   const [generatedVariants, setGeneratedVariants] = useState([])
   const [shotlistStatus, setShotlistStatus] = useState('idle')
+  const [shotlistResults, setShotlistResults] = useState([])
+  const [showShotlistResults, setShowShotlistResults] = useState(false)
   const [showVariantResults, setShowVariantResults] = useState(false)
 
   // Image generation state
@@ -305,6 +307,8 @@ export default function App() {
     setVisualsModal({ open: false, status: 'idle', results: [], errorMsg: null })
     setGeneratedVariants([])
     setShotlistStatus('idle')
+    setShotlistResults([])
+    setShowShotlistResults(false)
     setShowVariantResults(false)
     setPhase(PHASE.CLIENT_SELECT)
   }
@@ -595,21 +599,31 @@ export default function App() {
         }
       })
 
-      await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
+      const baseRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...commonInfo, variation: 'base', spec: productSpec, images: baseImages, videos: baseVideos }),
       })
+      const baseData = await baseRes.json().catch(() => ({}))
+      setShotlistResults(prev => [
+        ...prev.filter(r => r.label !== 'base'),
+        { label: 'base', driveUrl: baseData.drive_url ?? null, sheetUrl: baseData.sheet_url ?? null },
+      ])
 
       const sorted = [...generatedVariants].sort((a, b) => Number(a.number) - Number(b.number))
       for (const variant of sorted) {
         await new Promise(r => setTimeout(r, 15000))
         const variantImages = buildImageShotlist(variant.images.map(r => r?.data ?? null))
-        await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
+        const varRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...commonInfo, variation: variant.number, spec: variant.spec ?? '', images: variantImages }),
         })
+        const varData = await varRes.json().catch(() => ({}))
+        setShotlistResults(prev => [
+          ...prev.filter(r => r.label !== variant.number),
+          { label: variant.number, driveUrl: varData.drive_url ?? null, sheetUrl: varData.sheet_url ?? null },
+        ])
       }
 
       setShotlistStatus('done')
@@ -834,6 +848,18 @@ export default function App() {
                   )}
                   {shotlistStatus === 'done' ? 'Shotlist Sent ✓' : shotlistStatus === 'error' ? 'Retry Shotlist' : 'Create Shotlist'}
                 </button>
+                {shotlistResults.length > 0 && (
+                  <button
+                    onClick={() => setShowShotlistResults(true)}
+                    title="View shotlist results"
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                )}
               </>
             )}
           </header>
@@ -950,6 +976,67 @@ export default function App() {
                         <div className="flex items-center gap-3">
                           <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{r.label}</span>
                           <span className="text-sm text-gray-400">Variant {r.label}</span>
+                        </div>
+                        {r.sheetUrl ? (
+                          <a
+                            href={r.sheetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Google Sheet
+                          </a>
+                        ) : <span className="text-xs text-gray-300">—</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showShotlistResults && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-xl w-[480px] flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <h2 className="text-base font-semibold text-gray-900">Shotlist Results</h2>
+                  <button
+                    onClick={() => setShowShotlistResults(false)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-lg leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-6 space-y-3">
+                  {shotlistResults.find(r => r.driveUrl)?.driveUrl && (
+                    <a
+                      href={shotlistResults.find(r => r.driveUrl).driveUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                      </div>
+                      <span className="text-sm font-semibold text-amber-800 flex-1">Drive Folder</span>
+                      <svg className="w-4 h-4 text-amber-300 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  )}
+                  <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                    {shotlistResults.map(r => (
+                      <div key={r.label} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">
+                            {r.label === 'base' ? '✦' : r.label}
+                          </span>
+                          <span className="text-sm text-gray-400">{r.label === 'base' ? 'Base' : `Variant ${r.label}`}</span>
                         </div>
                         {r.sheetUrl ? (
                           <a

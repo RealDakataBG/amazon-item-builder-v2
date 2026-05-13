@@ -37,7 +37,7 @@ function ImageTypeSection({ label, block, onChange }) {
       />
       <div className="flex gap-2 flex-wrap mt-2">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-gray-400 font-medium">Person</span>
+          <span className="text-xs text-gray-400 font-medium">Model</span>
           <select
             value={block.person}
             onChange={e => onChange('person', e.target.value)}
