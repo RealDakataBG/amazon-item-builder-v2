@@ -599,20 +599,27 @@ export default function App() {
         }
       })
 
-      const baseRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...commonInfo, variation: 'base', spec: productSpec, images: baseImages, videos: baseVideos }),
-      })
-      const baseData = await baseRes.json().catch(() => ({}))
-      setShotlistResults(prev => [
-        ...prev.filter(r => r.label !== 'base'),
-        { label: 'base', driveUrl: baseData.drive_url ?? null, sheetUrl: baseData.sheet_url ?? null },
-      ])
+      const alreadySent = new Set(shotlistResults.map(r => r.label))
+      let sentCount = 0
+
+      if (!alreadySent.has('base')) {
+        const baseRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...commonInfo, variation: 'base', spec: productSpec, images: baseImages, videos: baseVideos }),
+        })
+        const baseData = await baseRes.json().catch(() => ({}))
+        setShotlistResults(prev => [
+          ...prev.filter(r => r.label !== 'base'),
+          { label: 'base', driveUrl: baseData.drive_url ?? null, sheetUrl: baseData.sheet_url ?? null },
+        ])
+        sentCount++
+      }
 
       const sorted = [...generatedVariants].sort((a, b) => Number(a.number) - Number(b.number))
       for (const variant of sorted) {
-        await new Promise(r => setTimeout(r, 15000))
+        if (alreadySent.has(variant.number)) continue
+        if (sentCount > 0) await new Promise(r => setTimeout(r, 15000))
         const variantImages = buildImageShotlist(variant.images.map(r => r?.data ?? null))
         const varRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
           method: 'POST',
@@ -624,6 +631,7 @@ export default function App() {
           ...prev.filter(r => r.label !== variant.number),
           { label: variant.number, driveUrl: varData.drive_url ?? null, sheetUrl: varData.sheet_url ?? null },
         ])
+        sentCount++
       }
 
       setShotlistStatus('done')
