@@ -40,17 +40,29 @@ export default function VariantsModal({ variants, status, steps, variantResults 
           <div className="flex-1 overflow-y-auto p-6">
 
             {/* Loading — simple spinner + current step */}
-            {isRunning && (
-              <div className="flex flex-col items-center justify-center py-10 gap-4">
-                <svg className="animate-spin w-9 h-9 text-blue-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <p className="text-sm text-gray-500 text-center max-w-xs">
-                  {steps.find(s => s.status === 'running')?.label ?? 'Processing…'}
-                </p>
-              </div>
-            )}
+            {isRunning && (() => {
+              const runningLabel = steps.find(s => s.status === 'running')?.label ?? ''
+              const arrowIdx = runningLabel.indexOf(' → ')
+              const variantName = arrowIdx !== -1 ? runningLabel.slice(0, arrowIdx) : runningLabel
+              const stepName    = arrowIdx !== -1 ? runningLabel.slice(arrowIdx + 3) : null
+              return (
+                <div className="flex flex-col items-center justify-center py-10 gap-4">
+                  <svg className="animate-spin w-9 h-9 text-blue-500" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <div className="flex flex-col items-center gap-2 text-center max-w-xs">
+                    <span className="text-sm font-medium text-gray-700">{variantName || 'Processing…'}</span>
+                    {stepName && (
+                      <>
+                        <div className="w-8 h-px bg-gray-200" />
+                        <span className="text-xs text-gray-400">{stepName}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Done — results */}
             {isDone && variantResults.length > 0 && (
