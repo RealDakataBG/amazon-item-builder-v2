@@ -77,6 +77,7 @@ export default function App() {
   const [imageSections, setImageSections]     = useState(INITIAL_IMAGE_SECTIONS)
   const [imageStatus, setImageStatus]         = useState('idle')
   const [productDescription, setProductDescription] = useState('')
+  const [productSpec, setProductSpec]               = useState('')
 
   // Video generation state
   const [videoSections, setVideoSections]     = useState(INITIAL_VIDEO_SECTIONS)
@@ -128,6 +129,7 @@ export default function App() {
       ])
       updateStep('sheets', 'done')
       setProductDescription(productData.description)
+      setProductSpec(productData.spec)
 
       // 2. Build the three user prompts
       const sharedArgs = {
@@ -287,6 +289,7 @@ export default function App() {
     setActivePanel('text')
     setActiveImageSlot(null)
     setProductDescription('')
+    setProductSpec('')
     setVideoSections(INITIAL_VIDEO_SECTIONS)
     setActiveVideoSlot(null)
     setImageRegenStatus({})
@@ -595,7 +598,7 @@ export default function App() {
       await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...commonInfo, variation: 'base', spec: '', images: baseImages, videos: baseVideos }),
+        body: JSON.stringify({ ...commonInfo, variation: 'base', spec: productSpec, images: baseImages, videos: baseVideos }),
       })
 
       const sorted = [...generatedVariants].sort((a, b) => Number(a.number) - Number(b.number))

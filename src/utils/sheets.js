@@ -42,11 +42,12 @@ export async function fetchIdentifierSheet() {
 
 export async function fetchProductData(clientSheetId, tabName) {
   // B2:E6 — row offset 0=row2, col offset 0=B
-  // B2=[0][0], B3=[1][0], D6=[4][2], E6=[4][3]
+  // B2=[0][0], B3=[1][0], C6=[4][1], D6=[4][2], E6=[4][3]
   const values = await fetchRange(clientSheetId, `'${tabName}'!B2:E6`)
   return {
     productName:   values?.[0]?.[0] ?? '',
     competitorUrl: values?.[1]?.[0] ?? '',
+    spec:          values?.[4]?.[1] ?? '',
     description:   values?.[4]?.[2] ?? '',
     usp:           values?.[4]?.[3] ?? '',
   }
