@@ -5,7 +5,7 @@ import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
-import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants } from './utils/sheets'
+import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
@@ -13,9 +13,11 @@ import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VI
 import VideoEditorPanel from './components/VideoEditorPanel'
 import VariantsModal from './components/VariantsModal'
 import ConceptResultModal from './components/ConceptResultModal'
+import LandingScreen from './components/LandingScreen'
+import SheetUrlInputModal from './components/SheetUrlInputModal'
 import { callClaude } from './utils/claude'
 
-const PHASE = { CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
+const PHASE = { LANDING: 'LANDING', CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
 
 const INITIAL_STEPS = [
   { id: 'sheets',    label: 'Fetching product & prompt data',         status: 'pending', message: '' },
@@ -49,7 +51,7 @@ const INITIAL_IMAGE_SECTIONS = Array.from({ length: 11 }, () => ({
 }))
 
 export default function App() {
-  const [phase, setPhase] = useState(PHASE.CLIENT_SELECT)
+  const [phase, setPhase] = useState(PHASE.LANDING)
   const [selectedClient, setSelectedClient] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [activeSection, setActiveSection] = useState('title')
@@ -70,6 +72,15 @@ export default function App() {
   const [shotlistResults, setShotlistResults] = useState([])
   const [showShotlistResults, setShowShotlistResults] = useState(false)
   const [showVariantResults, setShowVariantResults] = useState(false)
+
+  // Standalone variants flow state
+  const [flow, setFlow] = useState('none')
+  const [showUrlInputModal, setShowUrlInputModal] = useState(false)
+  const [standaloneListingUrl, setStandaloneListingUrl] = useState('')
+  const [standaloneVisualsUrl, setStandaloneVisualsUrl] = useState('')
+  const [urlInputLoading, setUrlInputLoading] = useState(false)
+  const [urlInputError, setUrlInputError] = useState(null)
+  const [selectedStandaloneVariants, setSelectedStandaloneVariants] = useState([])
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -274,7 +285,57 @@ export default function App() {
 
   const handleProductSelect = tabName => {
     setSelectedProduct(tabName)
-    runGeneration(selectedClient, tabName)
+    if (flow === 'standaloneVariants') {
+      fetchProductVariants(selectedClient.clientSheetId, tabName)
+        .then(variantData => {
+          setVariants(variantData)
+          setPhase(PHASE.DONE)
+          setShowVariantsModal(true)
+        })
+    } else {
+      runGeneration(selectedClient, tabName)
+    }
+  }
+
+  const handleLandingNewConcept = () => { setFlow('newConcept'); setPhase(PHASE.CLIENT_SELECT) }
+  const handleLandingVariants   = () => { setFlow('standaloneVariants'); setPhase(PHASE.CLIENT_SELECT) }
+
+  const handleStandaloneVariantGenerate = async (selectedVariants) => {
+    setUrlInputLoading(true)
+    setUrlInputError(null)
+    try {
+      const listingId = extractSheetId(standaloneListingUrl)
+      const visualsId = extractSheetId(standaloneVisualsUrl)
+      if (!listingId) throw new Error('Invalid listing sheet URL')
+      if (!visualsId) throw new Error('Invalid visuals sheet URL')
+
+      const [listingData, visualsData] = await Promise.all([
+        fetchListingConcept(listingId),
+        fetchVisualsConcept(visualsId),
+      ])
+
+      const baseData = {
+        sections: {
+          title:       { input: '', output: listingData.title },
+          bullets:     { input: '', output: listingData.bullets },
+          description: { input: '', output: listingData.description },
+          keywords:    { input: '', output: listingData.keywords },
+        },
+        imageSections: visualsData.images,
+        videoSections: visualsData.videos,
+      }
+
+      setShowUrlInputModal(false)
+      setVariantSteps([])
+      setVariantResults([])
+      setVariantStatus('idle')
+      setShowVariantsModal(true)
+      await handleGenerateVariants(selectedVariants, baseData)
+    } catch (err) {
+      setUrlInputError(err.message)
+    } finally {
+      setUrlInputLoading(false)
+    }
   }
 
   const handleNewConcept = () => {
@@ -310,7 +371,14 @@ export default function App() {
     setShotlistResults([])
     setShowShotlistResults(false)
     setShowVariantResults(false)
-    setPhase(PHASE.CLIENT_SELECT)
+    setFlow('none')
+    setShowUrlInputModal(false)
+    setStandaloneListingUrl('')
+    setStandaloneVisualsUrl('')
+    setUrlInputLoading(false)
+    setUrlInputError(null)
+    setSelectedStandaloneVariants([])
+    setPhase(PHASE.LANDING)
   }
 
   const handleCreateConcept = async () => {
@@ -423,7 +491,11 @@ export default function App() {
     }
   }
 
-  const handleGenerateVariants = async (selectedVariants) => {
+  const handleGenerateVariants = async (selectedVariants, baseData = null) => {
+    const sectionsRef      = baseData?.sections      ?? sections
+    const imageSectionsRef = baseData?.imageSections ?? imageSections
+    const videoSectionsRef = baseData?.videoSections ?? videoSections
+
     const upd = (id, status) =>
       setVariantSteps(prev => prev.map(s => s.id === id ? { ...s, status } : s))
 
@@ -449,16 +521,16 @@ export default function App() {
 
         upd(`v${i}_listing`, 'running')
         const [titleVar, bulletsVar, descVar] = await Promise.all([
-          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.title.output}\n\n${variantCtx}`),
-          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.bullets.output}\n\n${variantCtx}`),
-          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.description.output}\n\n${variantCtx}`),
+          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.title.output}\n\n${variantCtx}`),
+          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.bullets.output}\n\n${variantCtx}`),
+          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.description.output}\n\n${variantCtx}`),
         ])
-        const kwVar = await callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sections.keywords.output}\n\n${variantCtx}`)
+        const kwVar = await callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.keywords.output}\n\n${variantCtx}`)
         upd(`v${i}_listing`, 'done')
 
         upd(`v${i}_images`, 'running')
         const imageVarResults = await Promise.all(
-          imageSections.map(sec =>
+          imageSectionsRef.map(sec =>
             callClaude(VARIANT_IMAGE_SYSTEM_PROMPT, `Original concept (JSON):\n${sec.rawOutput}\n\n${variantCtx}`)
               .then(raw => parseImageOutput(raw))
           )
@@ -520,7 +592,7 @@ export default function App() {
               }
             }),
             videos: VIDEO_SLOTS.map((slot, idx) => {
-              const p = videoSections[idx]?.parsed ?? {}
+              const p = videoSectionsRef[idx]?.parsed ?? {}
               return {
                 id: slot.id, label: slot.label,
                 text:             p.text ?? '',
@@ -757,6 +829,14 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
+      {/* Landing screen */}
+      {phase === PHASE.LANDING && (
+        <LandingScreen
+          onNewConcept={handleLandingNewConcept}
+          onCreateVariants={handleLandingVariants}
+        />
+      )}
+
       {/* Client selection modal */}
       {phase === PHASE.CLIENT_SELECT && (
         <ClientSelector onSelect={handleClientSelect} />
@@ -950,7 +1030,23 @@ export default function App() {
               steps={variantSteps}
               variantResults={variantResults}
               onClose={() => setShowVariantsModal(false)}
-              onGenerate={handleGenerateVariants}
+              onGenerate={flow === 'standaloneVariants'
+                ? (selected) => { setSelectedStandaloneVariants(selected); setShowVariantsModal(false); setShowUrlInputModal(true) }
+                : handleGenerateVariants
+              }
+            />
+          )}
+
+          {showUrlInputModal && (
+            <SheetUrlInputModal
+              listingUrl={standaloneListingUrl}
+              visualsUrl={standaloneVisualsUrl}
+              onListingChange={setStandaloneListingUrl}
+              onVisualsChange={setStandaloneVisualsUrl}
+              onGenerate={() => handleStandaloneVariantGenerate(selectedStandaloneVariants)}
+              loading={urlInputLoading}
+              error={urlInputError}
+              onClose={() => setShowUrlInputModal(false)}
             />
           )}
 
