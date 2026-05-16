@@ -15,6 +15,7 @@ import VariantsModal from './components/VariantsModal'
 import ConceptResultModal from './components/ConceptResultModal'
 import LandingScreen from './components/LandingScreen'
 import SheetUrlInputModal from './components/SheetUrlInputModal'
+import ShotlistUrlInputModal from './components/ShotlistUrlInputModal'
 import { callClaude } from './utils/claude'
 
 const PHASE = { LANDING: 'LANDING', CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
@@ -81,6 +82,14 @@ export default function App() {
   const [urlInputLoading, setUrlInputLoading] = useState(false)
   const [urlInputError, setUrlInputError] = useState(null)
   const [selectedStandaloneVariants, setSelectedStandaloneVariants] = useState([])
+
+  // Standalone shotlist flow state
+  const [showShotlistUrlModal, setShowShotlistUrlModal]   = useState(false)
+  const [shotlistRows, setShotlistRows]                   = useState([{ url: '', isBase: false }])
+  const [shotlistSendStatus, setShotlistSendStatus]       = useState('idle')
+  const [shotlistSendResults, setShotlistSendResults]     = useState([])
+  const [shotlistSendProgress, setShotlistSendProgress]   = useState(0)
+  const [shotlistSendError, setShotlistSendError]         = useState(null)
 
   // Image generation state
   const [activePanel, setActivePanel]         = useState('text')
@@ -292,6 +301,13 @@ export default function App() {
           setPhase(PHASE.DONE)
           setShowVariantsModal(true)
         })
+    } else if (flow === 'standaloneShotlist') {
+      fetchProductData(selectedClient.clientSheetId, tabName)
+        .then(data => {
+          setProductSpec(data.spec)
+          setPhase(PHASE.DONE)
+          setShowShotlistUrlModal(true)
+        })
     } else {
       runGeneration(selectedClient, tabName)
     }
@@ -299,6 +315,7 @@ export default function App() {
 
   const handleLandingNewConcept = () => { setFlow('newConcept'); setPhase(PHASE.CLIENT_SELECT) }
   const handleLandingVariants   = () => { setFlow('standaloneVariants'); setPhase(PHASE.CLIENT_SELECT) }
+  const handleLandingShotlist   = () => { setFlow('standaloneShotlist'); setPhase(PHASE.CLIENT_SELECT) }
 
   const handleStandaloneVariantGenerate = async (selectedVariants) => {
     setUrlInputLoading(true)
@@ -378,6 +395,12 @@ export default function App() {
     setUrlInputLoading(false)
     setUrlInputError(null)
     setSelectedStandaloneVariants([])
+    setShowShotlistUrlModal(false)
+    setShotlistRows([{ url: '', isBase: false }])
+    setShotlistSendStatus('idle')
+    setShotlistSendResults([])
+    setShotlistSendProgress(0)
+    setShotlistSendError(null)
     setPhase(PHASE.LANDING)
   }
 
@@ -631,6 +654,94 @@ export default function App() {
     }
   }
 
+  const handleStandaloneShotlistGenerate = async () => {
+    setShotlistSendStatus('sending')
+    setShotlistSendResults([])
+    setShotlistSendProgress(0)
+    setShotlistSendError(null)
+
+    const commonInfo = {
+      client:     selectedClient?.name ?? '',
+      identifier: selectedClient?.identifier ?? '',
+      drive_url:  selectedClient?.driveFolderUrl ?? '',
+      sheet_id:   selectedClient?.clientSheetId ?? '',
+      product:    selectedProduct,
+    }
+
+    const buildImageShotlist = (images) =>
+      IMAGE_SLOTS
+        .map((slot, idx) => ({ slot, parsed: images[idx]?.parsed }))
+        .filter(({ parsed }) => parsed?.realPhoto?.needed === 'Yes')
+        .map(({ slot, parsed }) => ({
+          id: slot.id, label: slot.label, group: slot.group,
+          type: 'Foto',
+          text:             parsed.text ?? '',
+          imageDescription: parsed.imageDescription ?? '',
+          realPhoto: {
+            description: parsed.realPhoto.description ?? '',
+            person:      parsed.realPhoto.person ?? '',
+            location:    parsed.realPhoto.location ?? '',
+          },
+        }))
+
+    try {
+      for (let i = 0; i < shotlistRows.length; i++) {
+        const row = shotlistRows[i]
+        setShotlistSendProgress(i)
+
+        const visualsId = extractSheetId(row.url)
+        if (!visualsId) throw new Error(`Invalid URL in row ${i + 1}`)
+
+        const visualsData = await fetchVisualsConcept(visualsId)
+        const images = buildImageShotlist(visualsData.images)
+
+        const payload = {
+          ...commonInfo,
+          variation: row.isBase ? 'base' : 'variant',
+          spec:      row.isBase ? productSpec : 'variant',
+          images,
+          ...(row.isBase ? {
+            videos: VIDEO_SLOTS.map((slot, idx) => {
+              const p = visualsData.videos[idx]?.parsed ?? {}
+              return {
+                id: slot.id, label: slot.label,
+                type: 'Video',
+                text:             p.text ?? '',
+                imageDescription: p.imageDescription ?? '',
+                realVideo: {
+                  description: p.realVideo?.description ?? '',
+                  person:      p.realVideo?.person ?? '',
+                  location:    p.realVideo?.location ?? '',
+                },
+              }
+            })
+          } : {})
+        }
+
+        const res = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json().catch(() => ({}))
+
+        setShotlistSendResults(prev => [...prev, {
+          isBase:   row.isBase,
+          driveUrl: data.drive_url ?? null,
+          sheetUrl: data.sheet_url ?? null,
+        }])
+
+        if (i < shotlistRows.length - 1) {
+          await new Promise(r => setTimeout(r, 15000))
+        }
+      }
+      setShotlistSendStatus('done')
+    } catch (err) {
+      setShotlistSendError(err.message)
+      setShotlistSendStatus('error')
+    }
+  }
+
   const handleCreateShotlist = async () => {
     if (shotlistStatus === 'loading') return
     setShotlistStatus('loading')
@@ -834,6 +945,7 @@ export default function App() {
         <LandingScreen
           onNewConcept={handleLandingNewConcept}
           onCreateVariants={handleLandingVariants}
+          onCreateShotlist={handleLandingShotlist}
         />
       )}
 
@@ -1208,6 +1320,25 @@ export default function App() {
               results={visualsModal.results}
               errorMsg={visualsModal.errorMsg}
               onClose={() => setVisualsModal(prev => ({ ...prev, open: false }))}
+            />
+          )}
+        </>
+      )}
+
+      {/* Standalone shotlist flow — blank background with modal */}
+      {flow === 'standaloneShotlist' && phase === PHASE.DONE && (
+        <>
+          <div className="flex-1 bg-gray-50" />
+          {showShotlistUrlModal && (
+            <ShotlistUrlInputModal
+              rows={shotlistRows}
+              onRowsChange={setShotlistRows}
+              onGenerate={handleStandaloneShotlistGenerate}
+              status={shotlistSendStatus}
+              results={shotlistSendResults}
+              progress={shotlistSendProgress}
+              error={shotlistSendError}
+              onClose={handleNewConcept}
             />
           )}
         </>

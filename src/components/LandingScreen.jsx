@@ -1,4 +1,4 @@
-export default function LandingScreen({ onNewConcept, onCreateVariants }) {
+export default function LandingScreen({ onNewConcept, onCreateVariants, onCreateShotlist }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-50">
       <div className="flex flex-col items-center gap-6 w-full max-w-sm px-6">
@@ -26,8 +26,8 @@ export default function LandingScreen({ onNewConcept, onCreateVariants }) {
             Create Variants
           </button>
           <button
-            disabled
-            className="flex-1 py-3 rounded-xl border border-gray-200 bg-white text-gray-300 font-medium text-sm cursor-not-allowed"
+            onClick={onCreateShotlist}
+            className="flex-1 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
           >
             Create Shotlist
           </button>
