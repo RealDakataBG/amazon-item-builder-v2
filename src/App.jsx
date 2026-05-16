@@ -852,8 +852,8 @@ export default function App() {
         />
       )}
 
-      {/* Main split layout — visible during generation and after */}
-      {(phase === PHASE.GENERATING || phase === PHASE.DONE) && (
+      {/* Main split layout — only for newConcept flow */}
+      {(phase === PHASE.GENERATING || phase === PHASE.DONE) && flow !== 'standaloneVariants' && (
         <>
           {/* Top header bar */}
           <header className="flex-shrink-0 h-12 border-b border-gray-200 bg-white flex items-center px-5 gap-4">
@@ -1030,23 +1030,7 @@ export default function App() {
               steps={variantSteps}
               variantResults={variantResults}
               onClose={() => setShowVariantsModal(false)}
-              onGenerate={flow === 'standaloneVariants'
-                ? (selected) => { setSelectedStandaloneVariants(selected); setShowVariantsModal(false); setShowUrlInputModal(true) }
-                : handleGenerateVariants
-              }
-            />
-          )}
-
-          {showUrlInputModal && (
-            <SheetUrlInputModal
-              listingUrl={standaloneListingUrl}
-              visualsUrl={standaloneVisualsUrl}
-              onListingChange={setStandaloneListingUrl}
-              onVisualsChange={setStandaloneVisualsUrl}
-              onGenerate={() => handleStandaloneVariantGenerate(selectedStandaloneVariants)}
-              loading={urlInputLoading}
-              error={urlInputError}
-              onClose={() => setShowUrlInputModal(false)}
+              onGenerate={handleGenerateVariants}
             />
           )}
 
@@ -1224,6 +1208,41 @@ export default function App() {
               results={visualsModal.results}
               errorMsg={visualsModal.errorMsg}
               onClose={() => setVisualsModal(prev => ({ ...prev, open: false }))}
+            />
+          )}
+        </>
+      )}
+
+      {/* Standalone variants flow — blank background with modals */}
+      {flow === 'standaloneVariants' && phase === PHASE.DONE && (
+        <>
+          <div className="flex-1 bg-gray-50" />
+
+          {showVariantsModal && (
+            <VariantsModal
+              variants={variants}
+              status={variantStatus}
+              steps={variantSteps}
+              variantResults={variantResults}
+              onClose={handleNewConcept}
+              onGenerate={(selected) => {
+                setSelectedStandaloneVariants(selected)
+                setShowVariantsModal(false)
+                setShowUrlInputModal(true)
+              }}
+            />
+          )}
+
+          {showUrlInputModal && (
+            <SheetUrlInputModal
+              listingUrl={standaloneListingUrl}
+              visualsUrl={standaloneVisualsUrl}
+              onListingChange={setStandaloneListingUrl}
+              onVisualsChange={setStandaloneVisualsUrl}
+              onGenerate={() => handleStandaloneVariantGenerate(selectedStandaloneVariants)}
+              loading={urlInputLoading}
+              error={urlInputError}
+              onClose={() => setShowUrlInputModal(false)}
             />
           )}
         </>
