@@ -684,6 +684,7 @@ export default function App() {
           },
         }))
 
+    const collectedResults = []
     try {
       for (let i = 0; i < shotlistRows.length; i++) {
         const row = shotlistRows[i]
@@ -725,16 +726,17 @@ export default function App() {
         })
         const data = await res.json().catch(() => ({}))
 
-        setShotlistSendResults(prev => [...prev, {
+        collectedResults.push({
           isBase:   row.isBase,
           driveUrl: data.drive_url ?? null,
           sheetUrl: data.sheet_url ?? null,
-        }])
+        })
 
         if (i < shotlistRows.length - 1) {
           await new Promise(r => setTimeout(r, 15000))
         }
       }
+      setShotlistSendResults(collectedResults)
       setShotlistSendStatus('done')
     } catch (err) {
       setShotlistSendError(err.message)
