@@ -965,7 +965,7 @@ export default function App() {
       )}
 
       {/* Main split layout — only for newConcept flow */}
-      {(phase === PHASE.GENERATING || phase === PHASE.DONE) && flow !== 'standaloneVariants' && (
+      {(phase === PHASE.GENERATING || phase === PHASE.DONE) && flow !== 'standaloneVariants' && flow !== 'standaloneShotlist' && (
         <>
           {/* Top header bar */}
           <header className="flex-shrink-0 h-12 border-b border-gray-200 bg-white flex items-center px-5 gap-4">
