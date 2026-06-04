@@ -9,7 +9,7 @@ import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompt
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT } from './constants'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
 import VariantsModal from './components/VariantsModal'
 import ConceptResultModal from './components/ConceptResultModal'
@@ -696,11 +696,36 @@ export default function App() {
         const visualsData = await fetchVisualsConcept(visualsId)
         const images = buildImageShotlist(visualsData.images)
 
+        // Build prop list from real image + video descriptions via Claude
+        const descriptionLines = []
+        images.forEach((img, idx) => {
+          descriptionLines.push(`Image ${idx + 1}: ${img.realPhoto.description}`)
+        })
+        if (row.isBase) {
+          VIDEO_SLOTS.forEach((slot, idx) => {
+            const desc = visualsData.videos[idx]?.parsed?.realVideo?.description ?? ''
+            if (desc) descriptionLines.push(`Video ${idx + 1}: ${desc}`)
+          })
+        }
+        const propsRaw = await callClaude(
+          PROP_LIST_SYSTEM_PROMPT,
+          `Scene descriptions:\n\n${descriptionLines.join('\n')}`
+        )
+        let props = []
+        try {
+          const parsed = JSON.parse(propsRaw.trim())
+          if (Array.isArray(parsed)) props = parsed
+        } catch {
+          const match = propsRaw.match(/\[[\s\S]*\]/)
+          if (match) { try { props = JSON.parse(match[0]) } catch {} }
+        }
+
         const payload = {
           ...commonInfo,
           variation: row.isBase ? 'base' : 'variant',
           spec:      row.isBase ? productSpec : 'variant',
           images,
+          props,
           ...(row.isBase ? {
             videos: VIDEO_SLOTS.map((slot, idx) => {
               const p = visualsData.videos[idx]?.parsed ?? {}

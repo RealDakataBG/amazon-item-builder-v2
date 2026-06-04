@@ -155,3 +155,5 @@ export const VARIANT_IMAGE_SYSTEM_PROMPT = `You are an expert Amazon product ima
 Return ONLY raw JSON with the exact same structure — no markdown, no code fences, no explanation.
 CRITICAL: Never use double-quote characters (") inside string values. Use single quotes or German guillemets (« ») instead.
 Use EXACTLY the same camelCase key names as the input.`
+
+export const PROP_LIST_SYSTEM_PROMPT = `You are a professional photo and video shoot coordinator. Analyze the provided scene descriptions and identify every physical prop required for the shoot. Output ONLY a raw JSON array of prop name strings — no explanation, no markdown, no code fences, nothing else. Example: ["white backdrop","wooden table","potted plant","glass vase"]`
