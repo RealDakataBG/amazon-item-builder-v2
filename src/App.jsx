@@ -820,11 +820,22 @@ export default function App() {
       const alreadySent = new Set(shotlistResults.map(r => r.label))
       let sentCount = 0
 
+      const buildProps = async (images, videos = null) => {
+        const lines = []
+        images.forEach((img, i) => lines.push(`Image ${i + 1}: ${img.realPhoto.description}`))
+        if (videos) videos.forEach((vid, i) => { if (vid.realVideo?.description) lines.push(`Video ${i + 1}: ${vid.realVideo.description}`) })
+        const raw = await callClaude(PROP_LIST_SYSTEM_PROMPT, `Scene descriptions:\n\n${lines.join('\n')}`)
+        let props = []
+        try { const p = JSON.parse(raw.trim()); if (Array.isArray(p)) props = p } catch { const m = raw.match(/\[[\s\S]*\]/); if (m) try { props = JSON.parse(m[0]) } catch {} }
+        return props
+      }
+
       if (!alreadySent.has('base')) {
+        const baseProps = await buildProps(baseImages, baseVideos)
         const baseRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...commonInfo, variation: 'base', spec: productSpec, images: baseImages, videos: baseVideos }),
+          body: JSON.stringify({ ...commonInfo, variation: 'base', spec: productSpec, images: baseImages, videos: baseVideos, props: baseProps }),
         })
         const baseData = await baseRes.json().catch(() => ({}))
         setShotlistResults(prev => [
@@ -839,10 +850,11 @@ export default function App() {
         if (alreadySent.has(variant.number)) continue
         if (sentCount > 0) await new Promise(r => setTimeout(r, 15000))
         const variantImages = buildImageShotlist(variant.images.map(r => r?.data ?? null))
+        const variantProps = await buildProps(variantImages)
         const varRes  = await fetch('https://hook.eu1.make.com/e6p32g9331kmxefczsfrta70t5v5oco4', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...commonInfo, variation: variant.number, spec: variant.spec ?? '', images: variantImages }),
+          body: JSON.stringify({ ...commonInfo, variation: variant.number, spec: variant.spec ?? '', images: variantImages, props: variantProps }),
         })
         const varData = await varRes.json().catch(() => ({}))
         setShotlistResults(prev => [
