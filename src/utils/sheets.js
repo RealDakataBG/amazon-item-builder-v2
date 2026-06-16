@@ -54,36 +54,65 @@ export async function fetchProductData(clientSheetId, tabName) {
 }
 
 export async function fetchPromptSheet() {
-  // B1:B7 — row offset 0=B1, row offset 2=B3, row offset 4=B5, row offset 6=B7
-  const values = await fetchRange(PROMPT_SHEET_ID, "'Text'!B1:B7")
+  // B2:C8 — user prompts in col B (rows 0,2,4,6 = B2,B4,B6,B8), system prompts in col C
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Text'!B2:C8")
   return {
-    titlePrompt:       values?.[0]?.[0] ?? '',
-    bulletsPrompt:     values?.[2]?.[0] ?? '',
-    descriptionPrompt: values?.[4]?.[0] ?? '',
-    keywordsPrompt:    values?.[6]?.[0] ?? '',
+    titlePrompt:             values?.[0]?.[0] ?? '',
+    bulletsPrompt:           values?.[2]?.[0] ?? '',
+    descriptionPrompt:       values?.[4]?.[0] ?? '',
+    keywordsPrompt:          values?.[6]?.[0] ?? '',
+    titleSystemPrompt:       values?.[0]?.[1] ?? '',
+    bulletsSystemPrompt:     values?.[2]?.[1] ?? '',
+    descriptionSystemPrompt: values?.[4]?.[1] ?? '',
+    keywordsSystemPrompt:    values?.[6]?.[1] ?? '',
   }
 }
 
 export async function fetchImagePrompts() {
   const [featureRows, productRows, aplusRows] = await Promise.all([
-    fetchRange(PROMPT_SHEET_ID, "'Feature assignment'!B1:B3"),
-    fetchRange(PROMPT_SHEET_ID, "'Product Images'!B1:B11"),
-    fetchRange(PROMPT_SHEET_ID, "'A+ Images'!B1:B9"),
+    fetchRange(PROMPT_SHEET_ID, "'Feature assignment'!B2:C4"),
+    fetchRange(PROMPT_SHEET_ID, "'Product Images'!B2:C12"),
+    fetchRange(PROMPT_SHEET_ID, "'A+ Images'!B2:C10"),
   ])
   return {
-    usp1Prompt:     featureRows?.[0]?.[0] ?? '',
-    usp2Prompt:     featureRows?.[2]?.[0] ?? '',
-    productPrompts: [0,2,4,6,8,10].map(i => productRows?.[i]?.[0] ?? ''),
-    aplusPrompts:   [0,2,4,6,8].map(i => aplusRows?.[i]?.[0] ?? ''),
+    usp1Prompt:           featureRows?.[0]?.[0] ?? '',
+    usp2Prompt:           featureRows?.[2]?.[0] ?? '',
+    usp1SystemPrompt:     featureRows?.[0]?.[1] ?? '',
+    usp2SystemPrompt:     featureRows?.[2]?.[1] ?? '',
+    productPrompts:       [0,2,4,6,8,10].map(i => productRows?.[i]?.[0] ?? ''),
+    productSystemPrompts: [0,2,4,6,8,10].map(i => productRows?.[i]?.[1] ?? ''),
+    aplusPrompts:         [0,2,4,6,8].map(i => aplusRows?.[i]?.[0] ?? ''),
+    aplusSystemPrompts:   [0,2,4,6,8].map(i => aplusRows?.[i]?.[1] ?? ''),
   }
 }
 
 export async function fetchVideoPrompts() {
-  const values = await fetchRange(PROMPT_SHEET_ID, "'Video'!B1:B3")
+  // B2:C4 — user prompts in col B (rows 0,2 = B2,B4), system prompts in col C
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Video'!B2:C4")
   return {
-    scenesPrompt: values?.[0]?.[0] ?? '',
-    scene5Prompt: values?.[2]?.[0] ?? '',
+    scenesPrompt:       values?.[0]?.[0] ?? '',
+    scene5Prompt:       values?.[2]?.[0] ?? '',
+    scenesSystemPrompt: values?.[0]?.[1] ?? '',
+    scene5SystemPrompt: values?.[2]?.[1] ?? '',
   }
+}
+
+export async function fetchEditSystemPrompt() {
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Use AI'!B2")
+  return values?.[0]?.[0] ?? ''
+}
+
+export async function fetchVariantsSystemPrompts() {
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Variants'!B2:B4")
+  return {
+    listingSystemPrompt: values?.[0]?.[0] ?? '',
+    imageSystemPrompt:   values?.[2]?.[0] ?? '',
+  }
+}
+
+export async function fetchPropListSystemPrompt() {
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Prop List'!B2")
+  return values?.[0]?.[0] ?? ''
 }
 
 export function extractSheetId(url) {

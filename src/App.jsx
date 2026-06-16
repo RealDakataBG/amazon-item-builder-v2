@@ -5,7 +5,7 @@ import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
-import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept } from './utils/sheets'
+import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
@@ -16,6 +16,7 @@ import ConceptResultModal from './components/ConceptResultModal'
 import LandingScreen from './components/LandingScreen'
 import SheetUrlInputModal from './components/SheetUrlInputModal'
 import ShotlistUrlInputModal from './components/ShotlistUrlInputModal'
+import FeedbackWidget from './components/FeedbackWidget'
 import { callClaude } from './utils/claude'
 
 const PHASE = { LANDING: 'LANDING', CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
@@ -37,18 +38,18 @@ const INITIAL_IMAGE_STEPS = [
 ]
 
 const INITIAL_VIDEO_SECTIONS = Array.from({ length: 5 }, () => ({
-  input: '', rawOutput: '', parsed: null, parseError: null,
+  input: '', rawOutput: '', parsed: null, parseError: null, systemPrompt: '',
 }))
 
 const INITIAL_SECTIONS = {
-  title:       { input: '', output: '' },
-  bullets:     { input: '', output: '' },
-  description: { input: '', output: '' },
-  keywords:    { input: '', output: '' },
+  title:       { input: '', output: '', systemPrompt: '' },
+  bullets:     { input: '', output: '', systemPrompt: '' },
+  description: { input: '', output: '', systemPrompt: '' },
+  keywords:    { input: '', output: '', systemPrompt: '' },
 }
 
 const INITIAL_IMAGE_SECTIONS = Array.from({ length: 11 }, () => ({
-  input: '', rawOutput: '', parsed: null, parseError: null,
+  input: '', rawOutput: '', parsed: null, parseError: null, systemPrompt: '',
 }))
 
 export default function App() {
@@ -164,11 +165,16 @@ export default function App() {
       const descriptionUserPrompt = buildDescriptionPrompt({ ...sharedArgs, descriptionPromptInstruction: promptData.descriptionPrompt })
 
       // 3. Three parallel Claude calls
+      const titleSysPrompt       = promptData.titleSystemPrompt       || SYSTEM_PROMPTS.title
+      const bulletsSysPrompt     = promptData.bulletsSystemPrompt     || SYSTEM_PROMPTS.bullets
+      const descriptionSysPrompt = promptData.descriptionSystemPrompt || SYSTEM_PROMPTS.description
+      const keywordsSysPrompt    = promptData.keywordsSystemPrompt    || SYSTEM_PROMPTS.keywords
+
       updateStep('claude_3', 'running')
       const [titleResult, bulletsResult, descriptionResult] = await Promise.all([
-        callClaude(SYSTEM_PROMPTS.title,       titleUserPrompt),
-        callClaude(SYSTEM_PROMPTS.bullets,     bulletsUserPrompt),
-        callClaude(SYSTEM_PROMPTS.description, descriptionUserPrompt),
+        callClaude(titleSysPrompt,       titleUserPrompt),
+        callClaude(bulletsSysPrompt,     bulletsUserPrompt),
+        callClaude(descriptionSysPrompt, descriptionUserPrompt),
       ])
       updateStep('claude_3', 'done')
 
@@ -180,17 +186,17 @@ export default function App() {
         bulletsResult,
         descriptionResult,
       })
-      const keywordsRaw = await callClaude(SYSTEM_PROMPTS.keywords, keywordsUserPrompt)
+      const keywordsRaw = await callClaude(keywordsSysPrompt, keywordsUserPrompt)
       const keywordsResult = keywordsRaw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
       updateStep('claude_kw', 'done')
       updateStep('done', 'done')
 
       // 5. Populate sections and show the editor
       setSections({
-        title:       { input: titleUserPrompt,       output: titleResult },
-        bullets:     { input: bulletsUserPrompt,     output: bulletsResult },
-        description: { input: descriptionUserPrompt, output: descriptionResult },
-        keywords:    { input: keywordsUserPrompt,    output: keywordsResult },
+        title:       { input: titleUserPrompt,       output: titleResult,       systemPrompt: titleSysPrompt },
+        bullets:     { input: bulletsUserPrompt,     output: bulletsResult,     systemPrompt: bulletsSysPrompt },
+        description: { input: descriptionUserPrompt, output: descriptionResult, systemPrompt: descriptionSysPrompt },
+        keywords:    { input: keywordsUserPrompt,    output: keywordsResult,    systemPrompt: keywordsSysPrompt },
       })
       setActiveSection('title')
       setActivePanel('text')
@@ -227,39 +233,45 @@ export default function App() {
       updateImageStep('fetch_prompts', 'done')
 
       // 2. USP Step 1 (sequential)
+      const usp1SysPrompt = imagePromptData.usp1SystemPrompt || USP_SYSTEM_PROMPT
+      const usp2SysPrompt = imagePromptData.usp2SystemPrompt || USP_SYSTEM_PROMPT
       updateImageStep('usp1', 'running')
-      const usp1Output = await callClaude(USP_SYSTEM_PROMPT, `${imagePromptData.usp1Prompt}\n${productDescription}`)
+      const usp1Output = await callClaude(usp1SysPrompt, `${imagePromptData.usp1Prompt}\n${productDescription}`)
       updateImageStep('usp1', 'done')
 
       // 3. USP Step 2 (sequential, depends on USP1)
       updateImageStep('usp2', 'running')
-      const usp2Output = await callClaude(USP_SYSTEM_PROMPT, `${imagePromptData.usp2Prompt}\n${usp1Output}`)
+      const usp2Output = await callClaude(usp2SysPrompt, `${imagePromptData.usp2Prompt}\n${usp1Output}`)
       updateImageStep('usp2', 'done')
 
       // 4. 11 parallel image concept calls
       updateImageStep('concepts', 'running')
       const allSheetPrompts = [...imagePromptData.productPrompts, ...imagePromptData.aplusPrompts]
+      const allImgSysPrompts = [...imagePromptData.productSystemPrompts, ...imagePromptData.aplusSystemPrompts]
       const results = await Promise.all(
-        allSheetPrompts.map(sheetPrompt => {
+        allSheetPrompts.map((sheetPrompt, i) => {
+          const imgSysPrompt = allImgSysPrompts[i] || IMAGE_SYSTEM_PROMPT
           const userPrompt = buildImageUserPrompt(sheetPrompt, sections.description.output, usp2Output)
-          return callClaude(IMAGE_SYSTEM_PROMPT, userPrompt).then(raw => ({ userPrompt, raw }))
+          return callClaude(imgSysPrompt, userPrompt).then(raw => ({ userPrompt, raw, systemPrompt: imgSysPrompt }))
         })
       )
       updateImageStep('concepts', 'done')
 
       // 5. Parse image outputs
-      setImageSections(results.map(({ userPrompt, raw }) => {
+      setImageSections(results.map(({ userPrompt, raw, systemPrompt }) => {
         const { data, error } = parseImageOutput(raw)
-        return { input: userPrompt, rawOutput: raw, parsed: data, parseError: error }
+        return { input: userPrompt, rawOutput: raw, parsed: data, parseError: error, systemPrompt }
       }))
 
       // 6. Video scenes — scenes 1-4 and scene 5 in parallel
+      const videoScenesSysPrompt = videoPromptData.scenesSystemPrompt || VIDEO_SYSTEM_PROMPT
+      const videoScene5SysPrompt = videoPromptData.scene5SystemPrompt || VIDEO_SCENE5_SYSTEM_PROMPT
       updateImageStep('video', 'running')
       const videoScenesPrompt = buildVideoScenesPrompt(videoPromptData.scenesPrompt, sections.description.output, usp2Output)
       const videoScene5Prompt = buildVideoScene5Prompt(videoPromptData.scene5Prompt, sections.description.output, variantData.map(v => v.name), usp2Output)
       const [rawScenes14, rawScene5] = await Promise.all([
-        callClaude(VIDEO_SYSTEM_PROMPT, videoScenesPrompt),
-        callClaude(VIDEO_SCENE5_SYSTEM_PROMPT, videoScene5Prompt),
+        callClaude(videoScenesSysPrompt, videoScenesPrompt),
+        callClaude(videoScene5SysPrompt, videoScene5Prompt),
       ])
       updateImageStep('video', 'done')
       updateImageStep('done', 'done')
@@ -272,10 +284,11 @@ export default function App() {
         scene5data,
       ]
       setVideoSections(allScenes.map((parsed, i) => ({
-        input:     i < 4 ? videoScenesPrompt : videoScene5Prompt,
-        rawOutput: i < 4 ? rawScenes14       : rawScene5,
+        input:      i < 4 ? videoScenesPrompt     : videoScene5Prompt,
+        rawOutput:  i < 4 ? rawScenes14            : rawScene5,
         parsed,
-        parseError: i < 4 ? err14 : err5,
+        parseError: i < 4 ? err14                 : err5,
+        systemPrompt: i < 4 ? videoScenesSysPrompt : videoScene5SysPrompt,
       })))
       setImageStatus('done')
 
@@ -538,23 +551,27 @@ export default function App() {
     setVariantStatus('generating')
 
     try {
+      const variantPromptsData = await fetchVariantsSystemPrompts()
+      const variantListingSysPrompt = variantPromptsData.listingSystemPrompt || VARIANT_LISTING_SYSTEM_PROMPT
+      const variantImageSysPrompt   = variantPromptsData.imageSystemPrompt   || VARIANT_IMAGE_SYSTEM_PROMPT
+
       for (let i = 0; i < selectedVariants.length; i++) {
         const v = selectedVariants[i]
         const variantCtx = `Variant name: ${v.name}\nVariant specification: ${v.spec}`
 
         upd(`v${i}_listing`, 'running')
         const [titleVar, bulletsVar, descVar] = await Promise.all([
-          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.title.output}\n\n${variantCtx}`),
-          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.bullets.output}\n\n${variantCtx}`),
-          callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.description.output}\n\n${variantCtx}`),
+          callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.title.output}\n\n${variantCtx}`),
+          callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.bullets.output}\n\n${variantCtx}`),
+          callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.description.output}\n\n${variantCtx}`),
         ])
-        const kwVar = await callClaude(VARIANT_LISTING_SYSTEM_PROMPT, `Original:\n${sectionsRef.keywords.output}\n\n${variantCtx}`)
+        const kwVar = await callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.keywords.output}\n\n${variantCtx}`)
         upd(`v${i}_listing`, 'done')
 
         upd(`v${i}_images`, 'running')
         const imageVarResults = await Promise.all(
           imageSectionsRef.map(sec =>
-            callClaude(VARIANT_IMAGE_SYSTEM_PROMPT, `Original concept (JSON):\n${sec.rawOutput}\n\n${variantCtx}`)
+            callClaude(variantImageSysPrompt, `Original concept (JSON):\n${sec.rawOutput}\n\n${variantCtx}`)
               .then(raw => parseImageOutput(raw))
           )
         )
@@ -686,6 +703,8 @@ export default function App() {
 
     const collectedResults = []
     try {
+      const propSysPrompt = await fetchPropListSystemPrompt() || PROP_LIST_SYSTEM_PROMPT
+
       for (let i = 0; i < shotlistRows.length; i++) {
         const row = shotlistRows[i]
         setShotlistSendProgress(i)
@@ -708,7 +727,7 @@ export default function App() {
           })
         }
         const propsRaw = await callClaude(
-          PROP_LIST_SYSTEM_PROMPT,
+          propSysPrompt,
           `Scene descriptions:\n\n${descriptionLines.join('\n')}`
         )
         let props = []
@@ -820,11 +839,13 @@ export default function App() {
       const alreadySent = new Set(shotlistResults.map(r => r.label))
       let sentCount = 0
 
+      const propSysPrompt = await fetchPropListSystemPrompt() || PROP_LIST_SYSTEM_PROMPT
+
       const buildProps = async (images, videos = null) => {
         const lines = []
         images.forEach((img, i) => lines.push(`Image ${i + 1}: ${img.realPhoto.description}`))
         if (videos) videos.forEach((vid, i) => { if (vid.realVideo?.description) lines.push(`Video ${i + 1}: ${vid.realVideo.description}`) })
-        const raw = await callClaude(PROP_LIST_SYSTEM_PROMPT, `Scene descriptions:\n\n${lines.join('\n')}`)
+        const raw = await callClaude(propSysPrompt, `Scene descriptions:\n\n${lines.join('\n')}`)
         let props = []
         try { const p = JSON.parse(raw.trim()); if (Array.isArray(p)) props = p } catch { const m = raw.match(/\[[\s\S]*\]/); if (m) try { props = JSON.parse(m[0]) } catch {} }
         return props
@@ -874,7 +895,8 @@ export default function App() {
   const handleRegenerateText = async (sectionId) => {
     setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
     try {
-      const raw = await callClaude(SYSTEM_PROMPTS[sectionId], sections[sectionId].input)
+      const sysPrompt = sections[sectionId].systemPrompt || SYSTEM_PROMPTS[sectionId]
+      const raw = await callClaude(sysPrompt, sections[sectionId].input)
       const output = sectionId === 'keywords'
         ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
         : raw
@@ -888,7 +910,8 @@ export default function App() {
   const handleRegenerateImage = async (slotIndex) => {
     setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
     try {
-      const raw = await callClaude(IMAGE_SYSTEM_PROMPT, imageSections[slotIndex].input)
+      const sysPrompt = imageSections[slotIndex].systemPrompt || IMAGE_SYSTEM_PROMPT
+      const raw = await callClaude(sysPrompt, imageSections[slotIndex].input)
       const { data, error } = parseImageOutput(raw)
       setImageSections(prev => {
         const updated = [...prev]
@@ -904,7 +927,8 @@ export default function App() {
   const handleRegenerateVideo = async (slotIndex) => {
     setVideoRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
     try {
-      const sysPrompt = slotIndex === 4 ? VIDEO_SCENE5_SYSTEM_PROMPT : VIDEO_SCENE_SINGLE_SYSTEM_PROMPT
+      const fallback = slotIndex === 4 ? VIDEO_SCENE5_SYSTEM_PROMPT : VIDEO_SCENE_SINGLE_SYSTEM_PROMPT
+      const sysPrompt = videoSections[slotIndex].systemPrompt || fallback
       const raw = await callClaude(sysPrompt, videoSections[slotIndex].input)
       const { data, error } = parseVideoScene5Output(raw)
       setVideoSections(prev => {
@@ -1417,6 +1441,8 @@ export default function App() {
           )}
         </>
       )}
+
+      <FeedbackWidget />
     </div>
   )
 }

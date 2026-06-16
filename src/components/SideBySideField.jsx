@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { callClaude } from '../utils/claude'
 import { EDIT_SYSTEM_PROMPT } from '../constants'
+import { fetchEditSystemPrompt } from '../utils/sheets'
 import CopyButton from './CopyButton'
 
 export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange, leftMinHeight = 'min-h-32' }) {
@@ -14,8 +15,9 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
     if (!rightValue.trim() || aiLoading || pendingOutput !== null) return
     setAiLoading(true)
     try {
+      const sheetSysPrompt = await fetchEditSystemPrompt().catch(() => '')
       const result = await callClaude(
-        EDIT_SYSTEM_PROMPT,
+        sheetSysPrompt || EDIT_SYSTEM_PROMPT,
         `Original text:\n${leftValue}\n\nChange request:\n${rightValue}`
       )
       setOldOutput(leftValue)
