@@ -966,7 +966,7 @@ export default function App() {
       setTextHistory(prev => {
         const existing = prev[sectionId]
         const items = existing ? [...existing.items, output] : [prevOutput, output]
-        return { ...prev, [sectionId]: { items, index: items.length - 1 } }
+        return { ...prev, [sectionId]: { items, index: items.length - 1, source: 'regenerate' } }
       })
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
     } catch (err) {
@@ -995,7 +995,7 @@ export default function App() {
       setImageHistory(prev => {
         const existing = prev[slotIndex]
         const items = existing ? [...existing.items, newEntry] : [prevEntry, newEntry]
-        return { ...prev, [slotIndex]: { items, index: items.length - 1 } }
+        return { ...prev, [slotIndex]: { items, index: items.length - 1, source: 'regenerate' } }
       })
       setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
     } catch (err) {
@@ -1034,7 +1034,7 @@ export default function App() {
       setTextHistory(prev => {
         const existing = prev[sectionId]
         const items = existing ? [...existing.items, output] : [prevOutput, output]
-        return { ...prev, [sectionId]: { items, index: items.length - 1 } }
+        return { ...prev, [sectionId]: { items, index: items.length - 1, source: 'useAI' } }
       })
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
     } catch (err) {
@@ -1067,7 +1067,7 @@ export default function App() {
       setImageHistory(prev => {
         const existing = prev[slotIndex]
         const items = existing ? [...existing.items, newEntry] : [prevEntry, newEntry]
-        return { ...prev, [slotIndex]: { items, index: items.length - 1 } }
+        return { ...prev, [slotIndex]: { items, index: items.length - 1, source: 'useAI' } }
       })
       setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
     } catch (err) {

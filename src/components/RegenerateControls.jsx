@@ -1,12 +1,13 @@
 export default function RegenerateControls({ regenStatus, onRegenerate, history, onNavigate, onCommit }) {
   const showHistory = !!history && history.items.length > 1
+  const regenLocked = showHistory && history.source !== 'regenerate'
 
   return (
     <div className="flex items-center gap-2 mb-6">
       <button
         onClick={onRegenerate}
-        disabled={regenStatus === 'loading' || showHistory}
-        title={showHistory ? 'Commit a version first before regenerating again' : undefined}
+        disabled={regenStatus === 'loading' || regenLocked}
+        title={regenLocked ? 'Commit the current "Use AI" version first before regenerating' : undefined}
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-100 hover:bg-purple-200 text-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {regenStatus === 'loading' ? (

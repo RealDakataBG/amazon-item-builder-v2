@@ -5,7 +5,8 @@ import RegenerateControls from './RegenerateControls'
 
 export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit, onUseAI }) {
   const sectionLabel = SECTIONS.find(s => s.id === section)?.label ?? section
-  const isUncommitted = !!history && history.items.length > 1
+  const showHistory = !!history && history.items.length > 1
+  const useAILocked = showHistory && history.source !== 'useAI'
 
   const byteCount = new TextEncoder().encode(outputText).length
   const keywordsSuffix = section === 'keywords' ? (
@@ -57,7 +58,7 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
         leftValue={outputText}
         onLeftChange={onOutputChange}
         leftMinHeight="min-h-48"
-        disabled={isUncommitted}
+        disabled={useAILocked}
         onUseAI={onUseAI}
       />
     </div>

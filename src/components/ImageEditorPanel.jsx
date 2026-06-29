@@ -70,7 +70,8 @@ function ImageTypeSection({ label, block, onChange, disabled, onUseAI }) {
 
 export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit, onUseAIField }) {
   const { parsed, parseError, rawOutput, input } = data
-  const isUncommitted = !!history && history.items.length > 1
+  const showHistory = !!history && history.items.length > 1
+  const useAILocked = showHistory && history.source !== 'useAI'
 
   if (!parsed) {
     return (
@@ -123,7 +124,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
           label="Text"
           leftValue={parsed.text}
           onLeftChange={val => onChange('text', null, val)}
-          disabled={isUncommitted}
+          disabled={useAILocked}
           onUseAI={text => onUseAIField('text', null, text)}
         />
       </div>
@@ -134,7 +135,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
           label="Image Description"
           leftValue={parsed.imageDescription}
           onLeftChange={val => onChange('imageDescription', null, val)}
-          disabled={isUncommitted}
+          disabled={useAILocked}
           onUseAI={text => onUseAIField('imageDescription', null, text)}
         />
       </div>
@@ -144,7 +145,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
         label="Real Image"
         block={parsed.realPhoto}
         onChange={(subfield, value) => onChange('realPhoto', subfield, value)}
-        disabled={isUncommitted}
+        disabled={useAILocked}
         onUseAI={text => onUseAIField('realPhoto', 'description', text)}
       />
 
@@ -153,7 +154,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
         label="3D Rendering"
         block={parsed.rendering3d}
         onChange={(subfield, value) => onChange('rendering3d', subfield, value)}
-        disabled={isUncommitted}
+        disabled={useAILocked}
         onUseAI={text => onUseAIField('rendering3d', 'description', text)}
       />
     </div>
