@@ -1,10 +1,11 @@
 import { LOCATION_OPTIONS } from '../constants'
 import CopyButton from './CopyButton'
 import SideBySideField from './SideBySideField'
+import RegenerateControls from './RegenerateControls'
 
 const SELECT_CLASS = 'border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer'
 
-function ImageTypeSection({ label, block, onChange }) {
+function ImageTypeSection({ label, block, onChange, disabled }) {
   const handleNeededChange = val => {
     onChange('needed', val)
     if (val === 'No') {
@@ -34,6 +35,7 @@ function ImageTypeSection({ label, block, onChange }) {
         label="Description"
         leftValue={block.description}
         onLeftChange={val => onChange('description', val)}
+        disabled={disabled}
       />
       <div className="flex gap-2 flex-wrap mt-2">
         <div className="flex flex-col gap-1">
@@ -65,8 +67,9 @@ function ImageTypeSection({ label, block, onChange }) {
   )
 }
 
-export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatus, onRegenerate }) {
+export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit }) {
   const { parsed, parseError, rawOutput, input } = data
+  const isUncommitted = !!history && history.items.length > 1
 
   if (!parsed) {
     return (
@@ -90,26 +93,14 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
 
       <h1 className="text-xl font-semibold text-gray-900 mb-4">{slotLabel}</h1>
 
-      {/* Regenerate button */}
-      <div className="mb-6">
-        <button
-          onClick={onRegenerate}
-          disabled={regenStatus === 'loading'}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-wait transition-colors"
-        >
-          {regenStatus === 'loading' ? (
-            <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : (
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          )}
-          {regenStatus === 'loading' ? 'Regenerating…' : 'Regenerate'}
-        </button>
-      </div>
+      {/* Regenerate button + history navigation */}
+      <RegenerateControls
+        regenStatus={regenStatus}
+        onRegenerate={onRegenerate}
+        history={history}
+        onNavigate={onHistoryNav}
+        onCommit={onCommit}
+      />
 
       {/* Input prompt — single column */}
       <div className="mb-6">
@@ -131,6 +122,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
           label="Text"
           leftValue={parsed.text}
           onLeftChange={val => onChange('text', null, val)}
+          disabled={isUncommitted}
         />
       </div>
 
@@ -140,6 +132,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
           label="Image Description"
           leftValue={parsed.imageDescription}
           onLeftChange={val => onChange('imageDescription', null, val)}
+          disabled={isUncommitted}
         />
       </div>
 
@@ -148,6 +141,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
         label="Real Image"
         block={parsed.realPhoto}
         onChange={(subfield, value) => onChange('realPhoto', subfield, value)}
+        disabled={isUncommitted}
       />
 
       {/* 3D Rendering */}
@@ -155,6 +149,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
         label="3D Rendering"
         block={parsed.rendering3d}
         onChange={(subfield, value) => onChange('rendering3d', subfield, value)}
+        disabled={isUncommitted}
       />
     </div>
   )

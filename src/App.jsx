@@ -125,6 +125,47 @@ export default function App() {
     setRegenModalOpen(true)
   }
 
+  // Per-section/slot regeneration history — { items: [...], index: number }
+  const [textHistory, setTextHistory]   = useState({}) // keyed by sectionId
+  const [imageHistory, setImageHistory] = useState({}) // keyed by slotIndex
+
+  const handleTextHistoryNav = (sectionId, direction) => {
+    const h = textHistory[sectionId]
+    if (!h) return
+    const newIndex = h.index + direction
+    if (newIndex < 0 || newIndex >= h.items.length) return
+    setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output: h.items[newIndex] } }))
+    setTextHistory(prev => ({ ...prev, [sectionId]: { ...h, index: newIndex } }))
+  }
+
+  const handleCommitText = (sectionId) => {
+    setTextHistory(prev => {
+      const { [sectionId]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
+  const handleImageHistoryNav = (slotIndex, direction) => {
+    const h = imageHistory[slotIndex]
+    if (!h) return
+    const newIndex = h.index + direction
+    if (newIndex < 0 || newIndex >= h.items.length) return
+    const entry = h.items[newIndex]
+    setImageSections(prev => {
+      const updated = [...prev]
+      updated[slotIndex] = { ...updated[slotIndex], rawOutput: entry.rawOutput, parsed: entry.parsed, parseError: entry.parseError }
+      return updated
+    })
+    setImageHistory(prev => ({ ...prev, [slotIndex]: { ...h, index: newIndex } }))
+  }
+
+  const handleCommitImage = (slotIndex) => {
+    setImageHistory(prev => {
+      const { [slotIndex]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
   useEffect(() => {
     if (conceptStatus === 'done' || conceptStatus === 'error') {
       const t = setTimeout(() => setConceptStatus('idle'), 10000)
@@ -402,6 +443,12 @@ export default function App() {
     setImageRegenStatus({})
     setVideoRegenStatus({})
     setTextRegenStatus({})
+    setTextHistory({})
+    setImageHistory({})
+    setRegenModalOpen(false)
+    setRegenModalTarget(null)
+    setRegenSubmitStatus('idle')
+    setRegenSubmitError(null)
     setConceptCreationStatus('idle')
     setVariants([])
     setShowVariantsModal(false)
@@ -908,13 +955,19 @@ export default function App() {
 
   const handleRegenerateText = async (sectionId, promptText, image) => {
     setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
+    const prevOutput = sections[sectionId].output
     try {
-      const userPrompt = `Current text:\n${sections[sectionId].output}\n\nChange request:\n${promptText}`
+      const userPrompt = `Current text:\n${prevOutput}\n\nChange request:\n${promptText}`
       const raw = await callClaude(REGENERATE_TEXT_SYSTEM_PROMPT, userPrompt, image)
       const output = sectionId === 'keywords'
         ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
         : raw
       setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
+      setTextHistory(prev => {
+        const existing = prev[sectionId]
+        const items = existing ? [...existing.items, output] : [prevOutput, output]
+        return { ...prev, [sectionId]: { items, index: items.length - 1 } }
+      })
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
     } catch (err) {
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
@@ -924,14 +977,25 @@ export default function App() {
 
   const handleRegenerateImage = async (slotIndex, promptText, image) => {
     setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
+    const prevEntry = {
+      rawOutput:  imageSections[slotIndex].rawOutput,
+      parsed:     imageSections[slotIndex].parsed,
+      parseError: imageSections[slotIndex].parseError,
+    }
     try {
       const userPrompt = `Current image concept (JSON):\n${imageSections[slotIndex].rawOutput}\n\nChange request:\n${promptText}`
       const raw = await callClaude(REGENERATE_IMAGE_SYSTEM_PROMPT, userPrompt, image)
       const { data, error } = parseImageOutput(raw)
+      const newEntry = { rawOutput: raw, parsed: data, parseError: error }
       setImageSections(prev => {
         const updated = [...prev]
-        updated[slotIndex] = { ...updated[slotIndex], rawOutput: raw, parsed: data, parseError: error }
+        updated[slotIndex] = { ...updated[slotIndex], ...newEntry }
         return updated
+      })
+      setImageHistory(prev => {
+        const existing = prev[slotIndex]
+        const items = existing ? [...existing.items, newEntry] : [prevEntry, newEntry]
+        return { ...prev, [slotIndex]: { items, index: items.length - 1 } }
       })
       setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
     } catch (err) {
@@ -1208,6 +1272,9 @@ export default function App() {
                 onChange={(field, subfield, value) => handleImageSectionChange(activeImageSlot, field, subfield, value)}
                 regenStatus={imageRegenStatus[activeImageSlot] ?? null}
                 onRegenerate={() => openRegenModal('image', activeImageSlot)}
+                history={imageHistory[activeImageSlot]}
+                onHistoryNav={dir => handleImageHistoryNav(activeImageSlot, dir)}
+                onCommit={() => handleCommitImage(activeImageSlot)}
               />
             ) : activePanel === 'video' && activeVideoSlot !== null && videoSections[activeVideoSlot] ? (
               <VideoEditorPanel
@@ -1226,6 +1293,9 @@ export default function App() {
                 onOutputChange={text => handleSectionTextChange('output', text)}
                 regenStatus={textRegenStatus[activeSection] ?? null}
                 onRegenerate={() => openRegenModal('text', activeSection)}
+                history={textHistory[activeSection]}
+                onHistoryNav={dir => handleTextHistoryNav(activeSection, dir)}
+                onCommit={() => handleCommitText(activeSection)}
               />
             )}
           </main>

@@ -4,7 +4,7 @@ import { EDIT_SYSTEM_PROMPT } from '../constants'
 import { fetchEditSystemPrompt } from '../utils/sheets'
 import CopyButton from './CopyButton'
 
-export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange, leftMinHeight = 'min-h-32' }) {
+export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange, leftMinHeight = 'min-h-32', disabled = false }) {
   const [rightValue, setRightValue]       = useState('')
   const [aiLoading, setAiLoading]         = useState(false)
   const [pendingOutput, setPendingOutput] = useState(null)
@@ -12,7 +12,7 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
   const [viewingNew, setViewingNew]       = useState(true)
 
   const handleUseAI = async () => {
-    if (!rightValue.trim() || aiLoading || pendingOutput !== null) return
+    if (disabled || !rightValue.trim() || aiLoading || pendingOutput !== null) return
     setAiLoading(true)
     try {
       const sheetSysPrompt = await fetchEditSystemPrompt().catch(() => '')
@@ -124,11 +124,12 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
           <span className="text-xs text-gray-300 font-medium">Edit request</span>
           <button
             onClick={handleUseAI}
-            disabled={aiLoading || !rightValue.trim() || pendingOutput !== null}
+            disabled={disabled || aiLoading || !rightValue.trim() || pendingOutput !== null}
+            title={disabled ? 'Commit a version first before editing' : undefined}
             className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
               aiLoading
                 ? 'bg-purple-100 text-purple-400 cursor-wait'
-                : !rightValue.trim() || pendingOutput !== null
+                : disabled || !rightValue.trim() || pendingOutput !== null
                 ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                 : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
             }`}
