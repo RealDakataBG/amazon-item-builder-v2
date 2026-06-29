@@ -5,11 +5,11 @@ import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
-import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt } from './utils/sheets'
+import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt, fetchEditSystemPrompt } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT } from './constants'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT, EDIT_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
 import VariantsModal from './components/VariantsModal'
 import ConceptResultModal from './components/ConceptResultModal'
@@ -1021,6 +1021,61 @@ export default function App() {
     }
   }
 
+  const handleUseAIText = async (sectionId, promptText) => {
+    setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
+    const prevOutput = sections[sectionId].output
+    try {
+      const sheetSysPrompt = await fetchEditSystemPrompt().catch(() => '')
+      const raw = await callClaude(sheetSysPrompt || EDIT_SYSTEM_PROMPT, `Original text:\n${prevOutput}\n\nChange request:\n${promptText}`)
+      const output = sectionId === 'keywords'
+        ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
+        : raw
+      setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
+      setTextHistory(prev => {
+        const existing = prev[sectionId]
+        const items = existing ? [...existing.items, output] : [prevOutput, output]
+        return { ...prev, [sectionId]: { items, index: items.length - 1 } }
+      })
+      setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
+    } catch (err) {
+      setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
+      throw err
+    }
+  }
+
+  const handleUseAIImageField = async (slotIndex, field, subfield, promptText) => {
+    setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
+    const currentParsed = imageSections[slotIndex].parsed
+    const currentValue = subfield ? currentParsed[field][subfield] : currentParsed[field]
+    const prevEntry = {
+      rawOutput:  imageSections[slotIndex].rawOutput,
+      parsed:     currentParsed,
+      parseError: imageSections[slotIndex].parseError,
+    }
+    try {
+      const sheetSysPrompt = await fetchEditSystemPrompt().catch(() => '')
+      const raw = await callClaude(sheetSysPrompt || EDIT_SYSTEM_PROMPT, `Original text:\n${currentValue}\n\nChange request:\n${promptText}`)
+      const newParsed = subfield
+        ? { ...currentParsed, [field]: { ...currentParsed[field], [subfield]: raw } }
+        : { ...currentParsed, [field]: raw }
+      const newEntry = { rawOutput: JSON.stringify(newParsed), parsed: newParsed, parseError: null }
+      setImageSections(prev => {
+        const updated = [...prev]
+        updated[slotIndex] = { ...updated[slotIndex], ...newEntry }
+        return updated
+      })
+      setImageHistory(prev => {
+        const existing = prev[slotIndex]
+        const items = existing ? [...existing.items, newEntry] : [prevEntry, newEntry]
+        return { ...prev, [slotIndex]: { items, index: items.length - 1 } }
+      })
+      setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
+    } catch (err) {
+      setImageRegenStatus(prev => ({ ...prev, [slotIndex]: null }))
+      throw err
+    }
+  }
+
   const handleRegenerateVideo = async (slotIndex) => {
     setVideoRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
     try {
@@ -1275,6 +1330,7 @@ export default function App() {
                 history={imageHistory[activeImageSlot]}
                 onHistoryNav={dir => handleImageHistoryNav(activeImageSlot, dir)}
                 onCommit={() => handleCommitImage(activeImageSlot)}
+                onUseAIField={(field, subfield, text) => handleUseAIImageField(activeImageSlot, field, subfield, text)}
               />
             ) : activePanel === 'video' && activeVideoSlot !== null && videoSections[activeVideoSlot] ? (
               <VideoEditorPanel
@@ -1296,6 +1352,7 @@ export default function App() {
                 history={textHistory[activeSection]}
                 onHistoryNav={dir => handleTextHistoryNav(activeSection, dir)}
                 onCommit={() => handleCommitText(activeSection)}
+                onUseAI={text => handleUseAIText(activeSection, text)}
               />
             )}
           </main>

@@ -5,7 +5,7 @@ import RegenerateControls from './RegenerateControls'
 
 const SELECT_CLASS = 'border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer'
 
-function ImageTypeSection({ label, block, onChange, disabled }) {
+function ImageTypeSection({ label, block, onChange, disabled, onUseAI }) {
   const handleNeededChange = val => {
     onChange('needed', val)
     if (val === 'No') {
@@ -36,6 +36,7 @@ function ImageTypeSection({ label, block, onChange, disabled }) {
         leftValue={block.description}
         onLeftChange={val => onChange('description', val)}
         disabled={disabled}
+        onUseAI={onUseAI}
       />
       <div className="flex gap-2 flex-wrap mt-2">
         <div className="flex flex-col gap-1">
@@ -67,7 +68,7 @@ function ImageTypeSection({ label, block, onChange, disabled }) {
   )
 }
 
-export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit }) {
+export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit, onUseAIField }) {
   const { parsed, parseError, rawOutput, input } = data
   const isUncommitted = !!history && history.items.length > 1
 
@@ -123,6 +124,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
           leftValue={parsed.text}
           onLeftChange={val => onChange('text', null, val)}
           disabled={isUncommitted}
+          onUseAI={text => onUseAIField('text', null, text)}
         />
       </div>
 
@@ -133,6 +135,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
           leftValue={parsed.imageDescription}
           onLeftChange={val => onChange('imageDescription', null, val)}
           disabled={isUncommitted}
+          onUseAI={text => onUseAIField('imageDescription', null, text)}
         />
       </div>
 
@@ -142,6 +145,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
         block={parsed.realPhoto}
         onChange={(subfield, value) => onChange('realPhoto', subfield, value)}
         disabled={isUncommitted}
+        onUseAI={text => onUseAIField('realPhoto', 'description', text)}
       />
 
       {/* 3D Rendering */}
@@ -150,6 +154,7 @@ export default function ImageEditorPanel({ slotLabel, data, onChange, regenStatu
         block={parsed.rendering3d}
         onChange={(subfield, value) => onChange('rendering3d', subfield, value)}
         disabled={isUncommitted}
+        onUseAI={text => onUseAIField('rendering3d', 'description', text)}
       />
     </div>
   )

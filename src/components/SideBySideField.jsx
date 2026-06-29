@@ -1,58 +1,20 @@
 import { useState } from 'react'
-import { callClaude } from '../utils/claude'
-import { EDIT_SYSTEM_PROMPT } from '../constants'
-import { fetchEditSystemPrompt } from '../utils/sheets'
 import CopyButton from './CopyButton'
 
-export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange, leftMinHeight = 'min-h-32', disabled = false }) {
-  const [rightValue, setRightValue]       = useState('')
-  const [aiLoading, setAiLoading]         = useState(false)
-  const [pendingOutput, setPendingOutput] = useState(null)
-  const [oldOutput, setOldOutput]         = useState('')
-  const [viewingNew, setViewingNew]       = useState(true)
+export default function SideBySideField({ label, labelSuffix, leftValue, onLeftChange, leftMinHeight = 'min-h-32', disabled = false, onUseAI }) {
+  const [rightValue, setRightValue] = useState('')
+  const [aiLoading, setAiLoading]   = useState(false)
 
   const handleUseAI = async () => {
-    if (disabled || !rightValue.trim() || aiLoading || pendingOutput !== null) return
+    if (disabled || !rightValue.trim() || aiLoading) return
     setAiLoading(true)
     try {
-      const sheetSysPrompt = await fetchEditSystemPrompt().catch(() => '')
-      const result = await callClaude(
-        sheetSysPrompt || EDIT_SYSTEM_PROMPT,
-        `Original text:\n${leftValue}\n\nChange request:\n${rightValue}`
-      )
-      setOldOutput(leftValue)
-      setPendingOutput(result)
-      setViewingNew(true)
+      await onUseAI(rightValue.trim())
+      setRightValue('')
     } catch {
-      // keep existing values on error
+      // keep the typed request so the user can retry
     } finally {
       setAiLoading(false)
-    }
-  }
-
-  const handleCommit = () => {
-    onLeftChange(pendingOutput)
-    setPendingOutput(null)
-    setOldOutput('')
-    setViewingNew(true)
-    setRightValue('')
-  }
-
-  const handleDiscard = () => {
-    setPendingOutput(null)
-    setOldOutput('')
-    setViewingNew(true)
-  }
-
-  const displayValue = pendingOutput !== null
-    ? (viewingNew ? pendingOutput : oldOutput)
-    : leftValue
-
-  const handleTextareaChange = e => {
-    if (pendingOutput !== null) {
-      if (viewingNew) setPendingOutput(e.target.value)
-    } else {
-      onLeftChange(e.target.value)
     }
   }
 
@@ -68,52 +30,10 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
           <CopyButton text={leftValue} />
         </div>
 
-        {/* Old / New nav + Commit / Discard — only when pending */}
-        {pendingOutput !== null && (
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1 text-xs font-medium">
-              <button
-                onClick={() => setViewingNew(false)}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  !viewingNew ? 'text-gray-700 font-semibold' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                ← Old
-              </button>
-              <span className="text-gray-200">|</span>
-              <button
-                onClick={() => setViewingNew(true)}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  viewingNew ? 'text-gray-700 font-semibold' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                New →
-              </button>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleDiscard}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
-              >
-                Discard
-              </button>
-              <button
-                onClick={handleCommit}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-              >
-                Commit
-              </button>
-            </div>
-          </div>
-        )}
-
         <textarea
-          value={displayValue}
-          onChange={handleTextareaChange}
-          readOnly={pendingOutput !== null && !viewingNew}
-          className={`input-base text-sm leading-relaxed resize-y w-full ${leftMinHeight} ${
-            pendingOutput !== null && !viewingNew ? 'opacity-60 bg-gray-50' : ''
-          }`}
+          value={leftValue}
+          onChange={e => onLeftChange(e.target.value)}
+          className={`input-base text-sm leading-relaxed resize-y w-full ${leftMinHeight}`}
           spellCheck={false}
         />
       </div>
@@ -124,12 +44,12 @@ export default function SideBySideField({ label, labelSuffix, leftValue, onLeftC
           <span className="text-xs text-gray-300 font-medium">Edit request</span>
           <button
             onClick={handleUseAI}
-            disabled={disabled || aiLoading || !rightValue.trim() || pendingOutput !== null}
+            disabled={disabled || aiLoading || !rightValue.trim()}
             title={disabled ? 'Commit a version first before editing' : undefined}
             className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
               aiLoading
                 ? 'bg-purple-100 text-purple-400 cursor-wait'
-                : disabled || !rightValue.trim() || pendingOutput !== null
+                : disabled || !rightValue.trim()
                 ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                 : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
             }`}

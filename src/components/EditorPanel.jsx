@@ -3,7 +3,7 @@ import CopyButton from './CopyButton'
 import SideBySideField from './SideBySideField'
 import RegenerateControls from './RegenerateControls'
 
-export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit }) {
+export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit, onUseAI }) {
   const sectionLabel = SECTIONS.find(s => s.id === section)?.label ?? section
   const isUncommitted = !!history && history.items.length > 1
 
@@ -58,6 +58,7 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
         onLeftChange={onOutputChange}
         leftMinHeight="min-h-48"
         disabled={isUncommitted}
+        onUseAI={onUseAI}
       />
     </div>
   )

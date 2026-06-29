@@ -5,8 +5,9 @@ export default function RegenerateControls({ regenStatus, onRegenerate, history,
     <div className="flex items-center gap-2 mb-6">
       <button
         onClick={onRegenerate}
-        disabled={regenStatus === 'loading'}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-100 hover:bg-purple-200 text-purple-700 disabled:opacity-50 disabled:cursor-wait transition-colors"
+        disabled={regenStatus === 'loading' || showHistory}
+        title={showHistory ? 'Commit a version first before regenerating again' : undefined}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-100 hover:bg-purple-200 text-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {regenStatus === 'loading' ? (
           <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
