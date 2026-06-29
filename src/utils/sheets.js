@@ -115,6 +115,14 @@ export async function fetchPropListSystemPrompt() {
   return values?.[0]?.[0] ?? ''
 }
 
+export async function fetchRegenerateSystemPrompts() {
+  const values = await fetchRange(PROMPT_SHEET_ID, "'Regenerate'!B2:B4")
+  return {
+    textSystemPrompt:  values?.[0]?.[0] ?? '',
+    imageSystemPrompt: values?.[2]?.[0] ?? '',
+  }
+}
+
 export function extractSheetId(url) {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
   return match?.[1] ?? null

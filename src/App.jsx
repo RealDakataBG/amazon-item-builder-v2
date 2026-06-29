@@ -5,7 +5,7 @@ import ProgressTracker from './components/ProgressTracker'
 import Sidebar from './components/Sidebar'
 import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
-import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt, fetchEditSystemPrompt } from './utils/sheets'
+import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt, fetchEditSystemPrompt, fetchRegenerateSystemPrompts } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
@@ -957,8 +957,9 @@ export default function App() {
     setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
     const prevOutput = sections[sectionId].output
     try {
+      const sheetPrompts = await fetchRegenerateSystemPrompts().catch(() => ({}))
       const userPrompt = `Current text:\n${prevOutput}\n\nChange request:\n${promptText}`
-      const raw = await callClaude(REGENERATE_TEXT_SYSTEM_PROMPT, userPrompt, image)
+      const raw = await callClaude(sheetPrompts.textSystemPrompt || REGENERATE_TEXT_SYSTEM_PROMPT, userPrompt, image)
       const output = sectionId === 'keywords'
         ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
         : raw
@@ -983,8 +984,9 @@ export default function App() {
       parseError: imageSections[slotIndex].parseError,
     }
     try {
+      const sheetPrompts = await fetchRegenerateSystemPrompts().catch(() => ({}))
       const userPrompt = `Current image concept (JSON):\n${imageSections[slotIndex].rawOutput}\n\nChange request:\n${promptText}`
-      const raw = await callClaude(REGENERATE_IMAGE_SYSTEM_PROMPT, userPrompt, image)
+      const raw = await callClaude(sheetPrompts.imageSystemPrompt || REGENERATE_IMAGE_SYSTEM_PROMPT, userPrompt, image)
       const { data, error } = parseImageOutput(raw)
       const newEntry = { rawOutput: raw, parsed: data, parseError: error }
       setImageSections(prev => {
