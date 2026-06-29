@@ -9,7 +9,7 @@ import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompt
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT } from './constants'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
 import VariantsModal from './components/VariantsModal'
 import ConceptResultModal from './components/ConceptResultModal'
@@ -17,6 +17,7 @@ import LandingScreen from './components/LandingScreen'
 import SheetUrlInputModal from './components/SheetUrlInputModal'
 import ShotlistUrlInputModal from './components/ShotlistUrlInputModal'
 import FeedbackWidget from './components/FeedbackWidget'
+import RegenerateModal from './components/RegenerateModal'
 import { callClaude } from './utils/claude'
 
 const PHASE = { LANDING: 'LANDING', CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
@@ -110,6 +111,19 @@ export default function App() {
   const [imageRegenStatus, setImageRegenStatus] = useState({})
   const [videoRegenStatus, setVideoRegenStatus] = useState({})
   const [textRegenStatus, setTextRegenStatus]   = useState({})
+
+  // Regenerate-with-reference modal (text sections + image slots only)
+  const [regenModalOpen, setRegenModalOpen]       = useState(false)
+  const [regenModalTarget, setRegenModalTarget]   = useState(null) // { type: 'text'|'image', id }
+  const [regenSubmitStatus, setRegenSubmitStatus] = useState('idle')
+  const [regenSubmitError, setRegenSubmitError]   = useState(null)
+
+  const openRegenModal = (type, id) => {
+    setRegenModalTarget({ type, id })
+    setRegenSubmitStatus('idle')
+    setRegenSubmitError(null)
+    setRegenModalOpen(true)
+  }
 
   useEffect(() => {
     if (conceptStatus === 'done' || conceptStatus === 'error') {
@@ -892,26 +906,27 @@ export default function App() {
     }
   }
 
-  const handleRegenerateText = async (sectionId) => {
+  const handleRegenerateText = async (sectionId, promptText, image) => {
     setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
     try {
-      const sysPrompt = sections[sectionId].systemPrompt || SYSTEM_PROMPTS[sectionId]
-      const raw = await callClaude(sysPrompt, sections[sectionId].input)
+      const userPrompt = `Current text:\n${sections[sectionId].output}\n\nChange request:\n${promptText}`
+      const raw = await callClaude(REGENERATE_TEXT_SYSTEM_PROMPT, userPrompt, image)
       const output = sectionId === 'keywords'
         ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
         : raw
       setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
-    } catch {
+    } catch (err) {
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
+      throw err
     }
   }
 
-  const handleRegenerateImage = async (slotIndex) => {
+  const handleRegenerateImage = async (slotIndex, promptText, image) => {
     setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'loading' }))
     try {
-      const sysPrompt = imageSections[slotIndex].systemPrompt || IMAGE_SYSTEM_PROMPT
-      const raw = await callClaude(sysPrompt, imageSections[slotIndex].input)
+      const userPrompt = `Current image concept (JSON):\n${imageSections[slotIndex].rawOutput}\n\nChange request:\n${promptText}`
+      const raw = await callClaude(REGENERATE_IMAGE_SYSTEM_PROMPT, userPrompt, image)
       const { data, error } = parseImageOutput(raw)
       setImageSections(prev => {
         const updated = [...prev]
@@ -919,8 +934,26 @@ export default function App() {
         return updated
       })
       setImageRegenStatus(prev => ({ ...prev, [slotIndex]: 'done' }))
-    } catch {
+    } catch (err) {
       setImageRegenStatus(prev => ({ ...prev, [slotIndex]: null }))
+      throw err
+    }
+  }
+
+  const handleRegenModalSubmit = async (promptText, image) => {
+    setRegenSubmitStatus('loading')
+    setRegenSubmitError(null)
+    try {
+      if (regenModalTarget.type === 'text') {
+        await handleRegenerateText(regenModalTarget.id, promptText, image)
+      } else {
+        await handleRegenerateImage(regenModalTarget.id, promptText, image)
+      }
+      setRegenModalOpen(false)
+      setRegenSubmitStatus('idle')
+    } catch (err) {
+      setRegenSubmitStatus('error')
+      setRegenSubmitError(err.message)
     }
   }
 
@@ -1174,7 +1207,7 @@ export default function App() {
                 data={imageSections[activeImageSlot]}
                 onChange={(field, subfield, value) => handleImageSectionChange(activeImageSlot, field, subfield, value)}
                 regenStatus={imageRegenStatus[activeImageSlot] ?? null}
-                onRegenerate={() => handleRegenerateImage(activeImageSlot)}
+                onRegenerate={() => openRegenModal('image', activeImageSlot)}
               />
             ) : activePanel === 'video' && activeVideoSlot !== null && videoSections[activeVideoSlot] ? (
               <VideoEditorPanel
@@ -1192,7 +1225,7 @@ export default function App() {
                 onInputChange={text => handleSectionTextChange('input', text)}
                 onOutputChange={text => handleSectionTextChange('output', text)}
                 regenStatus={textRegenStatus[activeSection] ?? null}
-                onRegenerate={() => handleRegenerateText(activeSection)}
+                onRegenerate={() => openRegenModal('text', activeSection)}
               />
             )}
           </main>
@@ -1443,6 +1476,13 @@ export default function App() {
       )}
 
       <FeedbackWidget />
+      <RegenerateModal
+        isOpen={regenModalOpen}
+        onClose={() => setRegenModalOpen(false)}
+        onSubmit={handleRegenModalSubmit}
+        status={regenSubmitStatus}
+        error={regenSubmitError}
+      />
     </div>
   )
 }

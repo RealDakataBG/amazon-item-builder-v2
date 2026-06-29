@@ -1,8 +1,8 @@
-export async function callClaude(systemPrompt, userPrompt) {
+export async function callClaude(systemPrompt, userPrompt, image = null) {
   const res = await fetch('/api/claude-generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ systemPrompt, userPrompt }),
+    body: JSON.stringify({ systemPrompt, userPrompt, image }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

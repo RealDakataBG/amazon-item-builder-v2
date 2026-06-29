@@ -4,7 +4,14 @@ export const handler = async (event) => {
   }
 
   try {
-    const { systemPrompt, userPrompt } = JSON.parse(event.body)
+    const { systemPrompt, userPrompt, image } = JSON.parse(event.body)
+
+    const content = image
+      ? [
+          { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
+          { type: 'text', text: userPrompt },
+        ]
+      : userPrompt
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -17,7 +24,7 @@ export const handler = async (event) => {
         model: 'claude-sonnet-4-6',
         max_tokens: 2048,
         system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content }],
       }),
     })
 
