@@ -4,7 +4,7 @@ export const handler = async (event) => {
   }
 
   try {
-    const { systemPrompt, userPrompt, image } = JSON.parse(event.body)
+    const { systemPrompt, userPrompt, image, schema } = JSON.parse(event.body)
 
     const content = image
       ? [
@@ -13,6 +13,18 @@ export const handler = async (event) => {
         ]
       : userPrompt
 
+    const requestBody = {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [{ role: 'user', content }],
+    }
+
+    if (schema) {
+      requestBody.tools = [{ name: 'structured_output', description: 'Output the structured result', input_schema: schema }]
+      requestBody.tool_choice = { type: 'tool', name: 'structured_output' }
+    }
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -20,12 +32,7 @@ export const handler = async (event) => {
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: 'user', content }],
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!res.ok) {
@@ -34,8 +41,17 @@ export const handler = async (event) => {
     }
 
     const data = await res.json()
-    const text = data.content[0].text
 
+    if (schema) {
+      const toolBlock = data.content.find(b => b.type === 'tool_use')
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ structured: toolBlock.input }),
+      }
+    }
+
+    const text = data.content[0].text
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },

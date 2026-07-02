@@ -7,7 +7,7 @@ import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
 import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt, fetchEditSystemPrompt, fetchRegenerateSystemPrompts } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
-import { parseImageOutput, buildImageUserPrompt, parseUsp2Sections } from './utils/imageUtils'
+import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
 import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT, EDIT_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
@@ -18,7 +18,7 @@ import SheetUrlInputModal from './components/SheetUrlInputModal'
 import ShotlistUrlInputModal from './components/ShotlistUrlInputModal'
 import FeedbackWidget from './components/FeedbackWidget'
 import RegenerateModal from './components/RegenerateModal'
-import { callClaude } from './utils/claude'
+import { callClaude, callClaudeStructured } from './utils/claude'
 
 const PHASE = { LANDING: 'LANDING', CLIENT_SELECT: 'CLIENT_SELECT', PRODUCT_SELECT: 'PRODUCT_SELECT', GENERATING: 'GENERATING', DONE: 'DONE' }
 
@@ -294,14 +294,33 @@ export default function App() {
       const usp1Output = await callClaude(usp1SysPrompt, `${imagePromptData.usp1Prompt}\n${productDescription}`)
       updateImageStep('usp1', 'done')
 
-      // 3. USP Step 2 (sequential, depends on USP1)
+      // 3. USP Step 2 (sequential, depends on USP1) — structured output guarantees 11 keys
       updateImageStep('usp2', 'running')
-      const usp2Output = await callClaude(usp2SysPrompt, `${imagePromptData.usp2Prompt}\n${usp1Output}`)
+      const usp2Data = await callClaudeStructured(usp2SysPrompt, `${imagePromptData.usp2Prompt}\n${usp1Output}`, {
+        type: 'object',
+        properties: {
+          bild1:   { type: 'string' },
+          bild2:   { type: 'string' },
+          bild3:   { type: 'string' },
+          bild4:   { type: 'string' },
+          bild5:   { type: 'string' },
+          bild6:   { type: 'string' },
+          banner1: { type: 'string' },
+          banner2: { type: 'string' },
+          banner3: { type: 'string' },
+          banner4: { type: 'string' },
+          banner5: { type: 'string' },
+        },
+        required: ['bild1','bild2','bild3','bild4','bild5','bild6','banner1','banner2','banner3','banner4','banner5'],
+      })
+      const usp2Sections = [
+        usp2Data.bild1, usp2Data.bild2, usp2Data.bild3, usp2Data.bild4, usp2Data.bild5, usp2Data.bild6,
+        usp2Data.banner1, usp2Data.banner2, usp2Data.banner3, usp2Data.banner4, usp2Data.banner5,
+      ]
       updateImageStep('usp2', 'done')
 
       // 4. 11 parallel image concept calls
       updateImageStep('concepts', 'running')
-      const usp2Sections = parseUsp2Sections(usp2Output)
       const allSheetPrompts = [...imagePromptData.productPrompts, ...imagePromptData.aplusPrompts]
       const allImgSysPrompts = [...imagePromptData.productSystemPrompts, ...imagePromptData.aplusSystemPrompts]
       const results = await Promise.all(

@@ -31,22 +31,6 @@ export function parseImageOutput(rawText) {
   }
 }
 
-// Parses USP2 output into an array of 11 strings: indices 0-5 = Bild 1-6, indices 6-10 = Banner 1-5
-export function parseUsp2Sections(rawText) {
-  const result = Array(11).fill('')
-  const chunks = rawText.split(/^(?=Bild\s+\d+|Banner\s+\d+)/im)
-  for (const chunk of chunks) {
-    const m = chunk.match(/^(Bild|Banner)\s+(\d+)/i)
-    if (!m) continue
-    const isBild = m[1].toLowerCase() === 'bild'
-    const num = parseInt(m[2], 10)
-    const idx = isBild ? num - 1 : 5 + num  // Bild 1→0 … Bild 6→5; Banner 1→6 … Banner 5→10
-    if (idx >= 0 && idx < 11) {
-      result[idx] = chunk.replace(/^[^\n]*\n/, '').trim()
-    }
-  }
-  return result
-}
 
 export function buildImageUserPrompt(imagePromptFromSheet, descriptionOutput, uspSection) {
   return [
