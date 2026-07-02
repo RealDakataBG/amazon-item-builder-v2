@@ -63,24 +63,20 @@ export function parseVideoScene5Output(rawText) {
   }
 }
 
-export function buildVideoScenesPrompt(scenesPrompt, descriptionOutput, usp2Output) {
+export function buildVideoScenesPrompt(scenesPrompt, descriptionOutput) {
   return [
     scenesPrompt,
     'Hier sind die Produktinformationen:',
     descriptionOutput,
-    'Alleinstellungsmerkmale',
-    usp2Output,
   ].join('\n')
 }
 
-export function buildVideoScene5Prompt(scene5Prompt, descriptionOutput, variants, usp2Output) {
+export function buildVideoScene5Prompt(scene5Prompt, descriptionOutput, variants) {
   return [
     scene5Prompt,
     'Hier sind die Produktinformationen:',
     descriptionOutput,
     'Hier sind die Varianten:',
     variants.join('\n'),
-    'Alleinstellungsmerkmale',
-    usp2Output,
   ].join('\n')
 }

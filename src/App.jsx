@@ -7,7 +7,7 @@ import EditorPanel from './components/EditorPanel'
 import ImageEditorPanel from './components/ImageEditorPanel'
 import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompts, fetchProductVariants, extractSheetId, fetchListingConcept, fetchVisualsConcept, fetchVariantsSystemPrompts, fetchPropListSystemPrompt, fetchEditSystemPrompt, fetchRegenerateSystemPrompts } from './utils/sheets'
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
-import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
+import { parseImageOutput, buildImageUserPrompt, parseUsp2Sections } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
 import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT, EDIT_SYSTEM_PROMPT } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
@@ -301,12 +301,13 @@ export default function App() {
 
       // 4. 11 parallel image concept calls
       updateImageStep('concepts', 'running')
+      const usp2Sections = parseUsp2Sections(usp2Output)
       const allSheetPrompts = [...imagePromptData.productPrompts, ...imagePromptData.aplusPrompts]
       const allImgSysPrompts = [...imagePromptData.productSystemPrompts, ...imagePromptData.aplusSystemPrompts]
       const results = await Promise.all(
         allSheetPrompts.map((sheetPrompt, i) => {
           const imgSysPrompt = allImgSysPrompts[i] || IMAGE_SYSTEM_PROMPT
-          const userPrompt = buildImageUserPrompt(sheetPrompt, sections.description.output, usp2Output)
+          const userPrompt = buildImageUserPrompt(sheetPrompt, sections.description.output, usp2Sections[i])
           return callClaude(imgSysPrompt, userPrompt).then(raw => ({ userPrompt, raw, systemPrompt: imgSysPrompt }))
         })
       )
@@ -322,8 +323,8 @@ export default function App() {
       const videoScenesSysPrompt = videoPromptData.scenesSystemPrompt || VIDEO_SYSTEM_PROMPT
       const videoScene5SysPrompt = videoPromptData.scene5SystemPrompt || VIDEO_SCENE5_SYSTEM_PROMPT
       updateImageStep('video', 'running')
-      const videoScenesPrompt = buildVideoScenesPrompt(videoPromptData.scenesPrompt, sections.description.output, usp2Output)
-      const videoScene5Prompt = buildVideoScene5Prompt(videoPromptData.scene5Prompt, sections.description.output, variantData.map(v => v.name), usp2Output)
+      const videoScenesPrompt = buildVideoScenesPrompt(videoPromptData.scenesPrompt, sections.description.output)
+      const videoScene5Prompt = buildVideoScene5Prompt(videoPromptData.scene5Prompt, sections.description.output, variantData.map(v => v.name))
       const [rawScenes14, rawScene5] = await Promise.all([
         callClaude(videoScenesSysPrompt, videoScenesPrompt),
         callClaude(videoScene5SysPrompt, videoScene5Prompt),
