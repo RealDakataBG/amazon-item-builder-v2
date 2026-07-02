@@ -16,7 +16,7 @@ export async function callClaudeStructured(systemPrompt, userPrompt, schema) {
   const res = await fetch('/api/claude-generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ systemPrompt, userPrompt, schema }),
+    body: JSON.stringify({ systemPrompt, userPrompt, schema, maxTokens: 8192 }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

@@ -4,7 +4,7 @@ export const handler = async (event) => {
   }
 
   try {
-    const { systemPrompt, userPrompt, image, schema } = JSON.parse(event.body)
+    const { systemPrompt, userPrompt, image, schema, maxTokens } = JSON.parse(event.body)
 
     const content = image
       ? [
@@ -15,7 +15,7 @@ export const handler = async (event) => {
 
     const requestBody = {
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: maxTokens ?? 2048,
       system: systemPrompt,
       messages: [{ role: 'user', content }],
     }
