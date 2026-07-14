@@ -510,10 +510,12 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client:      selectedClient?.name ?? '',
-          identifier:  Number(selectedClient?.identifier),
-          drive_url:   selectedClient?.driveFolderUrl ?? '',
-          sheet_id:    selectedClient?.clientSheetId ?? '',
+          client:            selectedClient?.name ?? '',
+          identifier:        Number(selectedClient?.identifier),
+          drive_url:         selectedClient?.driveFolderUrl ?? '',
+          sheet_id:          selectedClient?.clientSheetId ?? '',
+          visuals_folder_id: selectedClient?.visualsFolderId ?? '',
+          shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
           product:     selectedProduct,
           variation:   'base',
           title:       sections.title.output,
@@ -542,10 +544,12 @@ export default function App() {
     setVisualsModal({ open: true, status: 'loading', results: [], errorMsg: null })
     try {
       const payload = {
-        client:     selectedClient?.name ?? '',
-        identifier: selectedClient?.identifier ?? '',
-        drive_url:  selectedClient?.driveFolderUrl ?? '',
-        sheet_id:   selectedClient?.clientSheetId ?? '',
+        client:             selectedClient?.name ?? '',
+        identifier:         selectedClient?.identifier ?? '',
+        drive_url:          selectedClient?.driveFolderUrl ?? '',
+        sheet_id:           selectedClient?.clientSheetId ?? '',
+        visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
+        shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
         product:    selectedProduct,
         variation:  'base',
         images: IMAGE_SLOTS.map((slot, i) => {
@@ -674,10 +678,12 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            client:      selectedClient?.name ?? '',
-            identifier:  Number(selectedClient?.identifier),
-            drive_url:   selectedClient?.driveFolderUrl ?? '',
-            sheet_id:    selectedClient?.clientSheetId ?? '',
+            client:             selectedClient?.name ?? '',
+            identifier:         Number(selectedClient?.identifier),
+            drive_url:          selectedClient?.driveFolderUrl ?? '',
+            sheet_id:           selectedClient?.clientSheetId ?? '',
+            visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
+            shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
             product:     selectedProduct,
             variation:   v.number,
             title:       titleVar,
@@ -696,10 +702,12 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            client:     selectedClient?.name ?? '',
-            identifier: selectedClient?.identifier ?? '',
-            drive_url:  selectedClient?.driveFolderUrl ?? '',
-            sheet_id:   selectedClient?.clientSheetId ?? '',
+            client:             selectedClient?.name ?? '',
+            identifier:         selectedClient?.identifier ?? '',
+            drive_url:          selectedClient?.driveFolderUrl ?? '',
+            sheet_id:           selectedClient?.clientSheetId ?? '',
+            visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
+            shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
             product:    selectedProduct,
             variation:  v.number,
             images: IMAGE_SLOTS.map((slot, idx) => {
@@ -874,10 +882,12 @@ export default function App() {
     setShotlistStatus('loading')
     try {
       const commonInfo = {
-        client:     selectedClient?.name ?? '',
-        identifier: selectedClient?.identifier ?? '',
-        drive_url:  selectedClient?.driveFolderUrl ?? '',
-        sheet_id:   selectedClient?.clientSheetId ?? '',
+        client:             selectedClient?.name ?? '',
+        identifier:         selectedClient?.identifier ?? '',
+        drive_url:          selectedClient?.driveFolderUrl ?? '',
+        sheet_id:           selectedClient?.clientSheetId ?? '',
+        visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
+        shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
         product:    selectedProduct,
       }
 
