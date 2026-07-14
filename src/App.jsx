@@ -767,10 +767,12 @@ export default function App() {
     setShotlistSendError(null)
 
     const commonInfo = {
-      client:     selectedClient?.name ?? '',
-      identifier: selectedClient?.identifier ?? '',
-      drive_url:  selectedClient?.driveFolderUrl ?? '',
-      sheet_id:   selectedClient?.clientSheetId ?? '',
+      client:             selectedClient?.name ?? '',
+      identifier:         selectedClient?.identifier ?? '',
+      drive_url:          selectedClient?.driveFolderUrl ?? '',
+      sheet_id:           selectedClient?.clientSheetId ?? '',
+      visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
+      shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
       product:    selectedProduct,
     }
 
