@@ -34,10 +34,11 @@ export function parseImageOutput(rawText) {
 
 export function buildImageUserPrompt(imagePromptFromSheet, descriptionOutput, uspSection) {
   return [
-    imagePromptFromSheet,
-    'Hier sind die Produktinformationen:',
-    descriptionOutput,
-    'Alleinstellungsmerkmale',
+    'WICHTIG: Dieses Bildkonzept muss ausschließlich auf diesen spezifischen Features basieren:',
     uspSection,
+    '',
+    imagePromptFromSheet,
+    'Zusätzliche Produktinformationen:',
+    descriptionOutput,
   ].join('\n')
 }

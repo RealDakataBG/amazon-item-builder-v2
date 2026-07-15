@@ -325,7 +325,10 @@ export default function App() {
       const allImgSysPrompts = [...imagePromptData.productSystemPrompts, ...imagePromptData.aplusSystemPrompts]
       const results = await Promise.all(
         allSheetPrompts.map((sheetPrompt, i) => {
-          const imgSysPrompt = allImgSysPrompts[i] || IMAGE_SYSTEM_PROMPT
+          const baseSystemPrompt = allImgSysPrompts[i] || IMAGE_SYSTEM_PROMPT
+          const imgSysPrompt = usp2Sections[i]
+            ? `${baseSystemPrompt}\n\nFokussiere dieses Konzept ausschließlich auf diese spezifischen Features:\n${usp2Sections[i]}`
+            : baseSystemPrompt
           const userPrompt = buildImageUserPrompt(sheetPrompt, sections.description.output, usp2Sections[i])
           return callClaude(imgSysPrompt, userPrompt).then(raw => ({ userPrompt, raw, systemPrompt: imgSysPrompt }))
         })
