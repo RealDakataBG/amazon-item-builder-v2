@@ -513,12 +513,13 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client:            selectedClient?.name ?? '',
-          identifier:        Number(selectedClient?.identifier),
-          drive_url:         selectedClient?.driveFolderUrl ?? '',
-          sheet_id:          selectedClient?.clientSheetId ?? '',
-          visuals_folder_id: selectedClient?.visualsFolderId ?? '',
+          client:             selectedClient?.name ?? '',
+          identifier:         Number(selectedClient?.identifier),
+          drive_url:          selectedClient?.driveFolderUrl ?? '',
+          sheet_id:           selectedClient?.clientSheetId ?? '',
+          visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
           shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
+          listing_folder_id:  selectedClient?.listingFolderId ?? '',
           product:     selectedProduct,
           variation:   'base',
           title:       sections.title.output,
@@ -553,6 +554,7 @@ export default function App() {
         sheet_id:           selectedClient?.clientSheetId ?? '',
         visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
         shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
+        listing_folder_id:  selectedClient?.listingFolderId ?? '',
         product:    selectedProduct,
         variation:  'base',
         images: IMAGE_SLOTS.map((slot, i) => {
@@ -687,6 +689,7 @@ export default function App() {
             sheet_id:           selectedClient?.clientSheetId ?? '',
             visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
             shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
+            listing_folder_id:  selectedClient?.listingFolderId ?? '',
             product:     selectedProduct,
             variation:   v.number,
             title:       titleVar,
@@ -711,6 +714,7 @@ export default function App() {
             sheet_id:           selectedClient?.clientSheetId ?? '',
             visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
             shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
+            listing_folder_id:  selectedClient?.listingFolderId ?? '',
             product:    selectedProduct,
             variation:  v.number,
             images: IMAGE_SLOTS.map((slot, idx) => {
@@ -776,6 +780,7 @@ export default function App() {
       sheet_id:           selectedClient?.clientSheetId ?? '',
       visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
       shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
+      listing_folder_id:  selectedClient?.listingFolderId ?? '',
       product:    selectedProduct,
     }
 
@@ -893,6 +898,7 @@ export default function App() {
         sheet_id:           selectedClient?.clientSheetId ?? '',
         visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
         shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
+        listing_folder_id:  selectedClient?.listingFolderId ?? '',
         product:    selectedProduct,
       }
 

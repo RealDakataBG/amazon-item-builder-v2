@@ -29,16 +29,17 @@ export async function fetchSheetTabs(spreadsheetId) {
 }
 
 export async function fetchIdentifierSheet() {
-  const values = await fetchRange(IDENTIFIER_SHEET_ID, 'A2:F200')
+  const values = await fetchRange(IDENTIFIER_SHEET_ID, 'A2:G200')
   return values
     .filter(row => row[0])
     .map(row => ({
-      name:             row[0] ?? '',
-      identifier:       row[1] ?? '',
-      clientSheetId:    row[2] ?? '',
-      driveFolderUrl:   row[3] ?? '',
-      visualsFolderId:  row[4] || row[3] || '',
-      shotlistFolderId: row[5] || row[3] || '',
+      name:              row[0] ?? '',
+      identifier:        row[1] ?? '',
+      clientSheetId:     row[2] ?? '',
+      driveFolderUrl:    row[3] ?? '',
+      visualsFolderId:   row[4] || row[3] || '',
+      shotlistFolderId:  row[5] || row[3] || '',
+      listingFolderId:   row[6] || row[3] || '',
     }))
 }
 
