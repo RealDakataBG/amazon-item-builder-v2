@@ -1,9 +1,18 @@
 export const IDENTIFIER_SHEET_ID = '1JCyL-0hvxqyyoJB-85oE5PXPoJnpIzSTC6v-YBx9zD8'
 export const PROMPT_SHEET_ID = '1KPMY6ysX_1zFSj9hucM-UsFErvcCFbQzxSE-E8mb59A'
 
+export const TITLE_SCHEMA = {
+  type: 'object',
+  properties: {
+    title:            { type: 'string' },
+    articleHighlight: { type: 'string' },
+  },
+  required: ['title', 'articleHighlight'],
+}
+
 export const SYSTEM_PROMPTS = {
-  title: `You are an expert Amazon listing copywriter specializing in product titles. When given product information and specifications, generate optimized Amazon product titles that are clear, keyword-rich, and conversion-focused.
-Return only the title. No explanation or commentary unless asked.`,
+  title: `You are an expert Amazon listing copywriter specializing in product titles. When given product information and specifications, generate an optimized Amazon product title (max 75 characters) and an article highlight (max 125 characters) that are clear, keyword-rich, and conversion-focused.
+Return only the title and article highlight. No explanation or commentary unless asked.`,
 
   bullets: `You are an expert Amazon listing copywriter specializing in product bullet points. When given product information and specifications, write compelling bullet points that highlight key features and benefits in a clear, conversion-focused way.
 Return only the bullet points. No explanation or commentary unless asked.`,

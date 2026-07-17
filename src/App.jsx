@@ -9,7 +9,7 @@ import { fetchProductData, fetchPromptSheet, fetchImagePrompts, fetchVideoPrompt
 import { buildTitlePrompt, buildBulletsPrompt, buildDescriptionPrompt, buildKeywordsPrompt } from './utils/prompts'
 import { parseImageOutput, buildImageUserPrompt } from './utils/imageUtils'
 import { parseVideoScenesOutput, parseVideoScene5Output, buildVideoScenesPrompt, buildVideoScene5Prompt } from './utils/videoUtils'
-import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT, EDIT_SYSTEM_PROMPT } from './constants'
+import { SYSTEM_PROMPTS, IMAGE_SYSTEM_PROMPT, USP_SYSTEM_PROMPT, IMAGE_SLOTS, VIDEO_SYSTEM_PROMPT, VIDEO_SCENE5_SYSTEM_PROMPT, VIDEO_SCENE_SINGLE_SYSTEM_PROMPT, VIDEO_SLOTS, VARIANT_LISTING_SYSTEM_PROMPT, VARIANT_IMAGE_SYSTEM_PROMPT, PROP_LIST_SYSTEM_PROMPT, REGENERATE_TEXT_SYSTEM_PROMPT, REGENERATE_IMAGE_SYSTEM_PROMPT, EDIT_SYSTEM_PROMPT, TITLE_SCHEMA } from './constants'
 import VideoEditorPanel from './components/VideoEditorPanel'
 import VariantsModal from './components/VariantsModal'
 import ConceptResultModal from './components/ConceptResultModal'
@@ -43,7 +43,7 @@ const INITIAL_VIDEO_SECTIONS = Array.from({ length: 5 }, () => ({
 }))
 
 const INITIAL_SECTIONS = {
-  title:       { input: '', output: '', systemPrompt: '' },
+  title:       { input: '', output: '', articleHighlight: '', systemPrompt: '' },
   bullets:     { input: '', output: '', systemPrompt: '' },
   description: { input: '', output: '', systemPrompt: '' },
   keywords:    { input: '', output: '', systemPrompt: '' },
@@ -134,7 +134,12 @@ export default function App() {
     if (!h) return
     const newIndex = h.index + direction
     if (newIndex < 0 || newIndex >= h.items.length) return
-    setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output: h.items[newIndex] } }))
+    const item = h.items[newIndex]
+    if (sectionId === 'title') {
+      setSections(prev => ({ ...prev, title: { ...prev.title, output: item.output, articleHighlight: item.articleHighlight } }))
+    } else {
+      setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output: item } }))
+    }
     setTextHistory(prev => ({ ...prev, [sectionId]: { ...h, index: newIndex } }))
   }
 
@@ -227,7 +232,7 @@ export default function App() {
 
       updateStep('claude_3', 'running')
       const [titleResult, bulletsResult, descriptionResult] = await Promise.all([
-        callClaude(titleSysPrompt,       titleUserPrompt),
+        callClaudeStructured(titleSysPrompt, titleUserPrompt, TITLE_SCHEMA),
         callClaude(bulletsSysPrompt,     bulletsUserPrompt),
         callClaude(descriptionSysPrompt, descriptionUserPrompt),
       ])
@@ -237,7 +242,7 @@ export default function App() {
       updateStep('claude_kw', 'running')
       const keywordsUserPrompt = buildKeywordsPrompt({
         keywordsPromptInstruction: promptData.keywordsPrompt,
-        titleResult,
+        titleResult:       titleResult.title,
         bulletsResult,
         descriptionResult,
       })
@@ -248,7 +253,7 @@ export default function App() {
 
       // 5. Populate sections and show the editor
       setSections({
-        title:       { input: titleUserPrompt,       output: titleResult,       systemPrompt: titleSysPrompt },
+        title:       { input: titleUserPrompt, output: titleResult.title, articleHighlight: titleResult.articleHighlight, systemPrompt: titleSysPrompt },
         bullets:     { input: bulletsUserPrompt,     output: bulletsResult,     systemPrompt: bulletsSysPrompt },
         description: { input: descriptionUserPrompt, output: descriptionResult, systemPrompt: descriptionSysPrompt },
         keywords:    { input: keywordsUserPrompt,    output: keywordsResult,    systemPrompt: keywordsSysPrompt },
@@ -520,10 +525,11 @@ export default function App() {
           visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
           shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
           listing_folder_id:  selectedClient?.listingFolderId ?? '',
-          product:     selectedProduct,
-          variation:   'base',
-          title:       sections.title.output,
-          bullets:     sections.bullets.output,
+          product:           selectedProduct,
+          variation:         'base',
+          title:             sections.title.output,
+          article_highlight: sections.title.articleHighlight,
+          bullets:           sections.bullets.output,
           description: sections.description.output,
           keywords:    sections.keywords.output,
         }),
@@ -651,7 +657,7 @@ export default function App() {
 
         upd(`v${i}_listing`, 'running')
         const [titleVar, bulletsVar, descVar] = await Promise.all([
-          callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.title.output}\n\n${variantCtx}`),
+          callClaudeStructured(variantListingSysPrompt, `Original title: ${sectionsRef.title.output}\nOriginal article highlight: ${sectionsRef.title.articleHighlight}\n\n${variantCtx}`, TITLE_SCHEMA),
           callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.bullets.output}\n\n${variantCtx}`),
           callClaude(variantListingSysPrompt, `Original:\n${sectionsRef.description.output}\n\n${variantCtx}`),
         ])
@@ -673,7 +679,7 @@ export default function App() {
             number: v.number,
             name:   v.name,
             spec:   v.spec,
-            listing: { title: titleVar, bullets: bulletsVar, description: descVar, keywords: kwVar },
+            listing: { title: titleVar.title, articleHighlight: titleVar.articleHighlight, bullets: bulletsVar, description: descVar, keywords: kwVar },
             images:  imageVarResults,
           }
         ])
@@ -690,10 +696,11 @@ export default function App() {
             visuals_folder_id:  selectedClient?.visualsFolderId ?? '',
             shotlist_folder_id: selectedClient?.shotlistFolderId ?? '',
             listing_folder_id:  selectedClient?.listingFolderId ?? '',
-            product:     selectedProduct,
-            variation:   v.number,
-            title:       titleVar,
-            bullets:     bulletsVar,
+            product:           selectedProduct,
+            variation:         v.number,
+            title:             titleVar.title,
+            article_highlight: titleVar.articleHighlight,
+            bullets:           bulletsVar,
             description: descVar,
             keywords:    kwVar,
           }),
@@ -996,20 +1003,34 @@ export default function App() {
 
   const handleRegenerateText = async (sectionId, promptText, image) => {
     setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
-    const prevOutput = sections[sectionId].output
     try {
       const sheetPrompts = await fetchRegenerateSystemPrompts().catch(() => ({}))
-      const userPrompt = `Current text:\n${prevOutput}\n\nChange request:\n${promptText}`
-      const raw = await callClaude(sheetPrompts.textSystemPrompt || REGENERATE_TEXT_SYSTEM_PROMPT, userPrompt, image)
-      const output = sectionId === 'keywords'
-        ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
-        : raw
-      setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
-      setTextHistory(prev => {
-        const existing = prev[sectionId]
-        const items = existing ? [...existing.items, output] : [prevOutput, output]
-        return { ...prev, [sectionId]: { items, index: items.length - 1, source: 'regenerate' } }
-      })
+      const sysPrompt = sheetPrompts.textSystemPrompt || REGENERATE_TEXT_SYSTEM_PROMPT
+      if (sectionId === 'title') {
+        const prevSnapshot = { output: sections.title.output, articleHighlight: sections.title.articleHighlight }
+        const userPrompt = `Current title: ${prevSnapshot.output}\nCurrent article highlight: ${prevSnapshot.articleHighlight}\n\nChange request:\n${promptText}`
+        const result = await callClaudeStructured(sysPrompt, userPrompt, TITLE_SCHEMA)
+        const newSnapshot = { output: result.title, articleHighlight: result.articleHighlight }
+        setSections(prev => ({ ...prev, title: { ...prev.title, ...newSnapshot } }))
+        setTextHistory(prev => {
+          const existing = prev.title
+          const items = existing ? [...existing.items, newSnapshot] : [prevSnapshot, newSnapshot]
+          return { ...prev, title: { items, index: items.length - 1, source: 'regenerate' } }
+        })
+      } else {
+        const prevOutput = sections[sectionId].output
+        const userPrompt = `Current text:\n${prevOutput}\n\nChange request:\n${promptText}`
+        const raw = await callClaude(sysPrompt, userPrompt, image)
+        const output = sectionId === 'keywords'
+          ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
+          : raw
+        setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
+        setTextHistory(prev => {
+          const existing = prev[sectionId]
+          const items = existing ? [...existing.items, output] : [prevOutput, output]
+          return { ...prev, [sectionId]: { items, index: items.length - 1, source: 'regenerate' } }
+        })
+      }
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
     } catch (err) {
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
@@ -1064,21 +1085,35 @@ export default function App() {
     }
   }
 
-  const handleUseAIText = async (sectionId, promptText) => {
+  const handleUseAIText = async (sectionId, promptText, field = 'output') => {
     setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'loading' }))
-    const prevOutput = sections[sectionId].output
     try {
       const sheetSysPrompt = await fetchEditSystemPrompt().catch(() => '')
-      const raw = await callClaude(sheetSysPrompt || EDIT_SYSTEM_PROMPT, `Original text:\n${prevOutput}\n\nChange request:\n${promptText}`)
-      const output = sectionId === 'keywords'
-        ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
-        : raw
-      setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
-      setTextHistory(prev => {
-        const existing = prev[sectionId]
-        const items = existing ? [...existing.items, output] : [prevOutput, output]
-        return { ...prev, [sectionId]: { items, index: items.length - 1, source: 'useAI' } }
-      })
+      const sysPrompt = sheetSysPrompt || EDIT_SYSTEM_PROMPT
+      if (sectionId === 'title') {
+        const currentValue = field === 'articleHighlight' ? sections.title.articleHighlight : sections.title.output
+        const prevSnapshot = { output: sections.title.output, articleHighlight: sections.title.articleHighlight }
+        const raw = await callClaude(sysPrompt, `Original text:\n${currentValue}\n\nChange request:\n${promptText}`)
+        const newSnapshot = { ...prevSnapshot, [field]: raw }
+        setSections(prev => ({ ...prev, title: { ...prev.title, [field]: raw } }))
+        setTextHistory(prev => {
+          const existing = prev.title
+          const items = existing ? [...existing.items, newSnapshot] : [prevSnapshot, newSnapshot]
+          return { ...prev, title: { items, index: items.length - 1, source: 'useAI' } }
+        })
+      } else {
+        const prevOutput = sections[sectionId].output
+        const raw = await callClaude(sysPrompt, `Original text:\n${prevOutput}\n\nChange request:\n${promptText}`)
+        const output = sectionId === 'keywords'
+          ? raw.replace(/\s*\(\d+\s*Bytes?\)\s*/gi, '').trim()
+          : raw
+        setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], output } }))
+        setTextHistory(prev => {
+          const existing = prev[sectionId]
+          const items = existing ? [...existing.items, output] : [prevOutput, output]
+          return { ...prev, [sectionId]: { items, index: items.length - 1, source: 'useAI' } }
+        })
+      }
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: 'done' }))
     } catch (err) {
       setTextRegenStatus(prev => ({ ...prev, [sectionId]: null }))
@@ -1395,7 +1430,10 @@ export default function App() {
                 history={textHistory[activeSection]}
                 onHistoryNav={dir => handleTextHistoryNav(activeSection, dir)}
                 onCommit={() => handleCommitText(activeSection)}
-                onUseAI={text => handleUseAIText(activeSection, text)}
+                onUseAI={text => handleUseAIText(activeSection, text, 'output')}
+                articleHighlight={sections.title?.articleHighlight ?? ''}
+                onArticleHighlightChange={text => handleSectionTextChange('articleHighlight', text)}
+                onUseAIArticleHighlight={text => handleUseAIText('title', text, 'articleHighlight')}
               />
             )}
           </main>

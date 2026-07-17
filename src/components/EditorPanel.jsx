@@ -3,7 +3,16 @@ import CopyButton from './CopyButton'
 import SideBySideField from './SideBySideField'
 import RegenerateControls from './RegenerateControls'
 
-export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit, onUseAI }) {
+function CharCounter({ text, max }) {
+  const len = (text ?? '').length
+  return (
+    <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+      len > max ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+    }`}>{len} / {max}</span>
+  )
+}
+
+export default function EditorPanel({ section, inputText, outputText, onInputChange, onOutputChange, regenStatus, onRegenerate, history, onHistoryNav, onCommit, onUseAI, articleHighlight = '', onArticleHighlightChange, onUseAIArticleHighlight }) {
   const sectionLabel = SECTIONS.find(s => s.id === section)?.label ?? section
   const showHistory = !!history && history.items.length > 1
   const useAILocked = showHistory && history.source !== 'useAI'
@@ -51,16 +60,39 @@ export default function EditorPanel({ section, inputText, outputText, onInputCha
         />
       </div>
 
-      {/* Output — side-by-side */}
-      <SideBySideField
-        label="Output"
-        labelSuffix={keywordsSuffix}
-        leftValue={outputText}
-        onLeftChange={onOutputChange}
-        leftMinHeight="min-h-48"
-        disabled={useAILocked}
-        onUseAI={onUseAI}
-      />
+      {/* Output — two fields for title, single field for all others */}
+      {section === 'title' ? (
+        <>
+          <SideBySideField
+            label="Title"
+            labelSuffix={<CharCounter text={outputText} max={75} />}
+            leftValue={outputText}
+            onLeftChange={onOutputChange}
+            leftMinHeight="min-h-16"
+            disabled={useAILocked}
+            onUseAI={onUseAI}
+          />
+          <SideBySideField
+            label="Article Highlight"
+            labelSuffix={<CharCounter text={articleHighlight} max={125} />}
+            leftValue={articleHighlight}
+            onLeftChange={onArticleHighlightChange}
+            leftMinHeight="min-h-16"
+            disabled={useAILocked}
+            onUseAI={onUseAIArticleHighlight}
+          />
+        </>
+      ) : (
+        <SideBySideField
+          label="Output"
+          labelSuffix={keywordsSuffix}
+          leftValue={outputText}
+          onLeftChange={onOutputChange}
+          leftMinHeight="min-h-48"
+          disabled={useAILocked}
+          onUseAI={onUseAI}
+        />
+      )}
     </div>
   )
 }
